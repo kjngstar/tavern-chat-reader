@@ -1,0 +1,97 @@
+{
+  "format": "txt-chat-viewer-skin",
+  "version": 1,
+  "name": "雾蓝",
+  "description": "克制、偏冷的蓝灰阅读皮肤",
+  "colorScheme": "dark",
+  "background": {
+    "image": "radial-gradient(circle at 18% 12%, rgba(130, 192, 242, .30), transparent 30%), linear-gradient(145deg, #0b1421, #273f5b)",
+    "size": "cover",
+    "position": "center",
+    "attachment": "fixed",
+    "overlay": "rgba(8, 16, 28, .15)",
+    "opacity": 0.92
+  },
+  "opacity": {
+    "reader": 0.86,
+    "toolbar": 0.78,
+    "menu": 0.92,
+    "flipPage": 0.9,
+    "mobilePanel": 0.92
+  },
+  "layout": {
+    "readerRadius": "22px",
+    "controlRadius": "999px",
+    "uiFont": "ui-sans-serif, system-ui, \"Microsoft YaHei\", sans-serif"
+  },
+  "reading": {
+    "font": "Georgia, \"Noto Serif SC\", \"Songti SC\", serif",
+    "weight": "400",
+    "color": "#e9f0f8",
+    "flipColor": "#edf4fc",
+    "size": 17,
+    "lineHeight": 1.95,
+    "paragraphSpacing": 0.9,
+    "paragraphIndent": 1.5,
+    "width": 62,
+    "sideMargin": 1.1
+  },
+  "tts": {
+    "panel": "#192636",
+    "surface": "#26384d",
+    "input": "#132131",
+    "ink": "#eaf3ff",
+    "muted": "#b9c8da",
+    "line": "rgba(214, 232, 250, .18)",
+    "accent": "#8ebee6",
+    "onAccent": "#112234"
+  },
+  "controls": {
+    "changeFile": "换文件",
+    "scroll": "卷轴",
+    "flip": "横翻",
+    "chapters": "目录",
+    "tts": "朗读",
+    "rules": "规则",
+    "appearance": "主题",
+    "text": "文字",
+    "fullscreen": "全屏",
+    "exitFullscreen": "退出",
+    "importRule": "导入规则",
+    "importSkin": "导入主题",
+    "previous": "上一页",
+    "next": "下一页",
+    "previousShort": "‹",
+    "nextShort": "›",
+    "previousChapter": "上一章",
+    "nextChapter": "下一章",
+    "pageNavigation": "按页翻",
+    "chapterNavigation": "按章翻"
+  },
+  "icons": {
+    "scroll": "☷",
+    "flip": "⇆",
+    "tts": "🔊",
+    "rules": "⌘",
+    "appearance": "✦",
+    "text": "Aa",
+    "fullscreen": "⛶"
+  },
+  "tokens": {
+    "--bg": "#141b26",
+    "--paper": "#202c3a",
+    "--paper-2": "#2b3b4d",
+    "--ink": "#e5edf7",
+    "--muted": "#aebfd0",
+    "--line": "rgba(219, 232, 248, .16)",
+    "--accent": "#8ebee6",
+    "--reader-shadow": "0 20px 54px rgba(3, 12, 24, .34)",
+    "--preview-bg": "#182433",
+    "--preview-code-bg": "#111b27",
+    "--flip-bg": "#253446",
+    "--flip-highlight": "rgba(142, 190, 230, .12)",
+    "--mobile-overlay": "rgba(7, 14, 25, .55)",
+    "--mobile-panel": "rgba(31, 45, 60, .94)"
+  },
+  "css": ".reader { letter-spacing: .006em; }\n.reader-toolbar, .rule-menu, .skin-menu { backdrop-filter: blur(10px); }\n.flip-page { background-image: linear-gradient(135deg, rgba(255,255,255,.05), rgba(0,0,0,.10)); }"
+}
