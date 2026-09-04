@@ -224,6 +224,7 @@
       .flip-page.fit-component .inline-render-host,
       .flip-page.fit-component .frontend-preview { transform: scale(var(--fit-scale, 1)); transform-origin: top left; }
       @keyframes pageIn { from { opacity: .35; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
+      #content.flip-animation-off .flip-page { animation: none; }
       .flip-controls { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; }
       .flip-controls button { min-height: 38px; font-weight: 700; }
       .flip-controls button:last-child { grid-column: 3; }
@@ -278,6 +279,7 @@
         .privacy { display: none; }
         .reader { border-radius: 14px; }
         .reader-head { align-items: center; padding: 12px 13px; }
+        .reader-head > :first-child { min-width: 0; }
         .reader-actions { flex-wrap: nowrap; justify-content: end; }
         .reader-actions button { padding: 7px 8px; }
         .reader-toolbar { padding: 9px 10px; }
@@ -320,7 +322,10 @@
           -webkit-backdrop-filter: blur(12px);
           box-shadow: 0 14px 34px rgba(0, 0, 0, .24);
         }
-        .is-reading .reader-controls.mobile-open .reader-head { position: absolute; top: max(10px, env(safe-area-inset-top)); right: 10px; left: 10px; border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); border-radius: 16px; }
+        .is-reading .reader-controls.mobile-open .reader-head { position: absolute; top: max(12px, calc(env(safe-area-inset-top) + 10px)); right: 10px; left: 10px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 9px 10px; border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); border-radius: 16px; }
+        .is-reading .reader-controls.mobile-open .reader-head > :first-child { min-width: 0; }
+        .is-reading .reader-controls.mobile-open .reader-actions { display: flex; min-width: 0; gap: 5px; }
+        .is-reading .reader-controls.mobile-open .reader-actions button { flex: 0 0 auto; padding: 7px 8px; white-space: nowrap; }
         .is-reading .reader-controls.mobile-open .reader-toolbar { position: absolute; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); left: 10px; flex-wrap: wrap; border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent); border-radius: 16px; }
         .is-reading .reader-controls.mobile-open .view-switch { flex: 1 0 100%; }
         .is-reading .reader-controls.mobile-open .toolbar-actions { flex: 1 0 100%; }
@@ -819,7 +824,7 @@
             </div>
             <div class="reader-actions">
               <button id="open-library" type="button" aria-label="返回书架">书架</button>
-              <button id="change-file" type="button"><span id="change-file-label">换一个文件</span></button>
+              <button id="change-file" type="button"><span id="change-file-label">导入</span></button>
               <button id="close-mobile-controls" class="mobile-menu-close" type="button" aria-label="收起菜单">×</button>
             </div>
           </div>
@@ -1020,6 +1025,15 @@
                 </div>
                 <p class="tts-status" id="tts-status">就绪</p>
                 <audio class="tts-audio" id="tts-audio" controls hidden></audio>
+                <div class="tts-field" id="apk-volume-key-field" hidden>
+                  <label class="tts-field-label" for="apk-volume-key-mode">APK 音量键</label>
+                  <select class="tts-select" id="apk-volume-key-mode">
+                    <option value="auto">智能：朗读中调音量，静读时翻页</option>
+                    <option value="page">始终翻页</option>
+                    <option value="volume">始终调系统音量</option>
+                  </select>
+                  <span class="tts-field-hint">仅 Android APK 显示。音量上为上一页，音量下为下一页。</span>
+                </div>
                 <div class="tts-card-meta" style="margin-top: 8px;">
                   单次 T2A 最多 1 万字符（≈ 5,000 中文字），超出自动分批。浏览器直调需本地 HTTP 服务（<code>python -m http.server 8000</code>）
                 </div>
@@ -1176,6 +1190,13 @@
               </div>
               <button id="justify-text-toggle" class="typeset-toggle" type="button" role="switch" aria-checked="false">已关闭</button>
             </div>
+            <div class="text-setting">
+              <div>
+                <span>横翻动画</span>
+                <small class="typeset-note">切换横翻页面时的淡入滑动效果</small>
+              </div>
+              <button id="flip-animation-toggle" class="typeset-toggle" type="button" role="switch" aria-checked="true">已开启</button>
+            </div>
             <hr class="text-menu-divider" />
             <section class="body-tag-settings" aria-labelledby="body-tag-title">
               <div class="body-tag-head">
@@ -1313,6 +1334,7 @@
       const paragraphizeLinesToggle = document.getElementById('paragraphize-lines-toggle');
       const wholeParagraphIndentToggle = document.getElementById('whole-paragraph-indent-toggle');
       const justifyTextToggle = document.getElementById('justify-text-toggle');
+      const flipAnimationToggle = document.getElementById('flip-animation-toggle');
       const bodyTagInput = document.getElementById('body-tag-input');
       const bodyTagAdd = document.getElementById('body-tag-add');
       const bodyTagReset = document.getElementById('body-tag-reset');
@@ -1345,7 +1367,7 @@
         size: 'skin', font: 'skin', customFontStack: '', weight: 'skin', color: 'skin',
         backgroundImage: 'skin', backgroundImageName: '', backgroundOpacity: 'skin', surfaceOpacity: 'skin',
         lineHeight: 'skin', paragraphSpacing: 'skin', paragraphIndent: 'skin', contentWidth: 'skin', sideMargin: 'skin',
-        typeset: true, compactParagraphs: false, paragraphizeLines: false, wholeParagraphIndent: false, justify: false,
+        typeset: true, compactParagraphs: false, paragraphizeLines: false, wholeParagraphIndent: false, justify: false, flipAnimation: true,
         flipNavigation: 'page',
       };
       let bodyTagRules = [];
@@ -2399,8 +2421,8 @@
       }
 
       function applySkinControls() {
-        changeFileLabel.textContent = controlText('changeFile', '换一个文件');
-        changeFile.setAttribute('aria-label', controlText('changeFile', '换一个文件'));
+        changeFileLabel.textContent = controlText('changeFile', '导入');
+        changeFile.setAttribute('aria-label', controlText('changeFile', '导入'));
         scrollLabel.textContent = controlText('scroll', '卷轴');
         flipLabel.textContent = controlText('flip', '横翻');
         chaptersLabel.textContent = controlText('chapters', '目录');
@@ -2528,6 +2550,7 @@
           if (typeof stored.paragraphizeLines === 'boolean') readingPreferences.paragraphizeLines = stored.paragraphizeLines;
           if (typeof stored.wholeParagraphIndent === 'boolean') readingPreferences.wholeParagraphIndent = stored.wholeParagraphIndent;
           if (typeof stored.justify === 'boolean') readingPreferences.justify = stored.justify;
+          if (typeof stored.flipAnimation === 'boolean') readingPreferences.flipAnimation = stored.flipAnimation;
           if (stored.flipNavigation === 'chapter' || stored.flipNavigation === 'page') readingPreferences.flipNavigation = stored.flipNavigation;
         } catch (_) {}
       }
@@ -2617,6 +2640,8 @@
         wholeParagraphIndentToggle.textContent = readingPreferences.wholeParagraphIndent ? '已开启' : '已关闭';
         justifyTextToggle.setAttribute('aria-checked', String(Boolean(readingPreferences.justify)));
         justifyTextToggle.textContent = readingPreferences.justify ? '已开启' : '已关闭';
+        flipAnimationToggle.setAttribute('aria-checked', String(Boolean(readingPreferences.flipAnimation)));
+        flipAnimationToggle.textContent = readingPreferences.flipAnimation ? '已开启' : '已关闭';
       }
 
       function applyReadingPreferences({ persist = true, relayout = true } = {}) {
@@ -2726,6 +2751,7 @@
         content.classList.toggle('paragraphize-lines', Boolean(readingPreferences.paragraphizeLines));
         content.classList.toggle('whole-paragraph-indent', Boolean(readingPreferences.wholeParagraphIndent));
         content.classList.toggle('justify-text', Boolean(readingPreferences.justify));
+        content.classList.toggle('flip-animation-off', !readingPreferences.flipAnimation);
         fontSizeInput.value = String(size);
         fontSizeValue.textContent = `${followsSkin.size ? '皮肤 · ' : ''}${size}px`;
         customFontStackInput.value = readingPreferences.customFontStack;
@@ -4047,6 +4073,10 @@
         readingPreferences.justify = !readingPreferences.justify;
         applyReadingPreferences({ relayout: false });
       });
+      flipAnimationToggle.addEventListener('click', () => {
+        readingPreferences.flipAnimation = !readingPreferences.flipAnimation;
+        applyReadingPreferences({ relayout: false });
+      });
       bodyTagAdd.addEventListener('click', () => addBodyTagRule());
       bodyTagInput.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter') return;
@@ -4076,6 +4106,7 @@
         readingPreferences.paragraphizeLines = false;
         readingPreferences.wholeParagraphIndent = false;
         readingPreferences.justify = false;
+        readingPreferences.flipAnimation = true;
         applyReadingPreferences({ relayout: false });
         if (loadedText) renderActiveContent();
       });
@@ -4739,6 +4770,50 @@
       tts.init();
       ttsAttachChapterButtons();
       ttsAttachBookButtons();
+
+      // Android APK 专属：把硬件音量键状态交给原生壳；普通浏览器不会显示这项设置。
+      window.tavernReaderVolumePage = (rawDirection) => {
+        const direction = Number(rawDirection) < 0 ? -1 : 1;
+        if (!reader || reader.hidden) return false;
+        if (viewMode === 'flip' && flipPages.length) {
+          goByFlipNavigation(direction);
+        } else {
+          window.scrollBy({ top: direction * window.innerHeight * .82, behavior: 'smooth' });
+        }
+        return true;
+      };
+
+      (() => {
+        const bridge = window.AndroidReader;
+        if (!bridge) return;
+        const reportReaderState = () => bridge.setReaderActive(Boolean(reader && !reader.hidden));
+        const reportTtsState = () => {
+          const audio = document.getElementById('tts-audio');
+          bridge.setTtsPlaying(Boolean(audio && !audio.paused && !audio.ended));
+        };
+        const audio = document.getElementById('tts-audio');
+        ['play', 'playing', 'pause', 'ended', 'emptied'].forEach((name) => {
+          audio?.addEventListener(name, reportTtsState);
+        });
+        if (reader) {
+          new MutationObserver(reportReaderState).observe(reader, { attributes: true, attributeFilter: ['hidden'] });
+        }
+        const field = document.getElementById('apk-volume-key-field');
+        const mode = document.getElementById('apk-volume-key-mode');
+        if (field && mode) {
+          field.hidden = false;
+          const saved = localStorage.getItem('apk.volumeKeyMode');
+          if (saved === 'auto' || saved === 'page' || saved === 'volume') mode.value = saved;
+          const syncMode = () => {
+            localStorage.setItem('apk.volumeKeyMode', mode.value);
+            bridge.setVolumeKeyMode(mode.value);
+          };
+          mode.addEventListener('change', syncMode);
+          syncMode();
+        }
+        reportReaderState();
+        reportTtsState();
+      })();
     </script>
   </body>
 </html>
