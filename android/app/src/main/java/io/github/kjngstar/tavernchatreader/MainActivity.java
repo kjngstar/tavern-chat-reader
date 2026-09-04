@@ -8,6 +8,8 @@ import android.os.Bundle;
 import android.os.Build;
 import android.view.View;
 import android.view.Window;
+import android.view.KeyEvent;
+import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -20,6 +22,9 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 904;
     private WebView webView;
     private ValueCallback<Uri[]> pendingFileCallback;
+    private volatile boolean readerActive;
+    private volatile boolean ttsPlaying;
+    private volatile String volumeKeyMode = "auto";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +47,7 @@ public class MainActivity extends Activity {
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setTextZoom(100);
         webView.setBackgroundColor(Color.TRANSPARENT);
+        webView.addJavascriptInterface(new ReaderBridge(), "AndroidReader");
         webView.setWebViewClient(new WebViewClient());
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -93,6 +99,43 @@ public class MainActivity extends Activity {
     public void onBackPressed() {
         if (webView != null && webView.canGoBack()) webView.goBack();
         else super.onBackPressed();
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        boolean isVolumeKey = keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN;
+        boolean shouldTurnPage = readerActive
+                && !"volume".equals(volumeKeyMode)
+                && ("page".equals(volumeKeyMode) || !ttsPlaying);
+        if (isVolumeKey && shouldTurnPage && webView != null) {
+            int direction = keyCode == KeyEvent.KEYCODE_VOLUME_UP ? -1 : 1;
+            webView.evaluateJavascript(
+                    "window.tavernReaderVolumePage && window.tavernReaderVolumePage(" + direction + ")",
+                    null
+            );
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    /** JavaScript bridge for the trusted offline reader page bundled in this APK. */
+    private final class ReaderBridge {
+        @JavascriptInterface
+        public void setReaderActive(boolean active) {
+            readerActive = active;
+        }
+
+        @JavascriptInterface
+        public void setTtsPlaying(boolean playing) {
+            ttsPlaying = playing;
+        }
+
+        @JavascriptInterface
+        public void setVolumeKeyMode(String mode) {
+            if ("page".equals(mode) || "volume".equals(mode) || "auto".equals(mode)) {
+                volumeKeyMode = mode;
+            }
+        }
     }
 
     @Override

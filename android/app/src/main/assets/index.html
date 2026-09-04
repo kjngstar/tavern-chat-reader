@@ -1020,6 +1020,15 @@
                 </div>
                 <p class="tts-status" id="tts-status">就绪</p>
                 <audio class="tts-audio" id="tts-audio" controls hidden></audio>
+                <div class="tts-field" id="apk-volume-key-field" hidden>
+                  <label class="tts-field-label" for="apk-volume-key-mode">APK 音量键</label>
+                  <select class="tts-select" id="apk-volume-key-mode">
+                    <option value="auto">智能：朗读中调音量，静读时翻页</option>
+                    <option value="page">始终翻页</option>
+                    <option value="volume">始终调系统音量</option>
+                  </select>
+                  <span class="tts-field-hint">仅 Android APK 显示。音量上为上一页，音量下为下一页。</span>
+                </div>
                 <div class="tts-card-meta" style="margin-top: 8px;">
                   单次 T2A 最多 1 万字符（≈ 5,000 中文字），超出自动分批。浏览器直调需本地 HTTP 服务（<code>python -m http.server 8000</code>）
                 </div>
@@ -4739,6 +4748,50 @@
       tts.init();
       ttsAttachChapterButtons();
       ttsAttachBookButtons();
+
+      // Android APK 专属：把硬件音量键状态交给原生壳；普通浏览器不会显示这项设置。
+      window.tavernReaderVolumePage = (rawDirection) => {
+        const direction = Number(rawDirection) < 0 ? -1 : 1;
+        if (!reader || reader.hidden) return false;
+        if (viewMode === 'flip' && flipPages.length) {
+          goByFlipNavigation(direction);
+        } else {
+          window.scrollBy({ top: direction * window.innerHeight * .82, behavior: 'smooth' });
+        }
+        return true;
+      };
+
+      (() => {
+        const bridge = window.AndroidReader;
+        if (!bridge) return;
+        const reportReaderState = () => bridge.setReaderActive(Boolean(reader && !reader.hidden));
+        const reportTtsState = () => {
+          const audio = document.getElementById('tts-audio');
+          bridge.setTtsPlaying(Boolean(audio && !audio.paused && !audio.ended));
+        };
+        const audio = document.getElementById('tts-audio');
+        ['play', 'playing', 'pause', 'ended', 'emptied'].forEach((name) => {
+          audio?.addEventListener(name, reportTtsState);
+        });
+        if (reader) {
+          new MutationObserver(reportReaderState).observe(reader, { attributes: true, attributeFilter: ['hidden'] });
+        }
+        const field = document.getElementById('apk-volume-key-field');
+        const mode = document.getElementById('apk-volume-key-mode');
+        if (field && mode) {
+          field.hidden = false;
+          const saved = localStorage.getItem('apk.volumeKeyMode');
+          if (saved === 'auto' || saved === 'page' || saved === 'volume') mode.value = saved;
+          const syncMode = () => {
+            localStorage.setItem('apk.volumeKeyMode', mode.value);
+            bridge.setVolumeKeyMode(mode.value);
+          };
+          mode.addEventListener('change', syncMode);
+          syncMode();
+        }
+        reportReaderState();
+        reportTtsState();
+      })();
     </script>
   </body>
 </html>
