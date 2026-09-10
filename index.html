@@ -142,10 +142,14 @@
       .chapter-menu-title { color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
       .chapter-summary { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
       .chapter-list { display: grid; gap: 6px; }
+      .chapter-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 6px; }
       .chapter-item { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 9px; width: 100%; padding: 8px 9px; border-color: var(--line); border-radius: 9px; color: var(--ink); background: rgba(0, 0, 0, .12); text-align: left; }
       .chapter-item:hover, .chapter-item[aria-current="true"] { border-color: var(--accent); color: var(--ink); background: color-mix(in srgb, var(--accent) 10%, transparent); }
       .chapter-number { display: inline-grid; min-width: 24px; place-items: center; color: var(--accent); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; font-weight: 750; }
       .chapter-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .chapter-delete, .chapter-restore { flex: 0 0 auto; padding: 5px 8px; border-color: var(--line); color: var(--muted); font-size: 10px; }
+      .chapter-delete:hover { border-color: color-mix(in srgb, #c85a55 58%, var(--line)); color: #e7a1a1; background: rgba(180, 70, 70, .12); }
+      .chapter-restore { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); white-space: nowrap; }
       .chapter-empty { margin: 0; padding: 13px 8px 4px; color: var(--muted); font-size: 12px; text-align: center; line-height: 1.6; }
       .rule-menu { padding: 12px 14px 14px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, rgba(10, 12, 17, .18), transparent), color-mix(in srgb, var(--paper) var(--menu-opacity), transparent); }
       .rule-menu-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
@@ -867,6 +871,7 @@
                 <span class="chapter-menu-title">章节目录</span>
                 <p id="chapter-summary" class="chapter-summary">会从当前显示内容中自动识别标题。</p>
               </div>
+              <button id="chapter-restore" class="chapter-restore" type="button" hidden>恢复已删章节</button>
             </div>
             <div id="chapter-list" class="chapter-list"></div>
             <p id="chapter-empty" class="chapter-empty">未识别到章节标题。可让标题单独占一行，使用“第 1 章 …”“# 标题”或“Chapter 1”。</p>
@@ -1286,6 +1291,7 @@
       const chapterSummary = document.getElementById('chapter-summary');
       const chapterList = document.getElementById('chapter-list');
       const chapterEmpty = document.getElementById('chapter-empty');
+      const chapterRestore = document.getElementById('chapter-restore');
       const rulesToggle = document.getElementById('rules-toggle');
       const ruleCount = document.getElementById('rule-count');
       const ruleMenu = document.getElementById('rule-menu');
@@ -1355,6 +1361,8 @@
       let loadedText = '';
       let rules = [];
       let chapters = [];
+      let detectedChapterCount = 0;
+      let deletedChapterIds = new Set();
       let activeChapterId = '';
       let viewMode = 'scroll';
       let flipPages = [];
@@ -1878,6 +1886,9 @@
         if (!normalized) return;
         loadedText = normalized.text || '（这个文件是空的）';
         flipIndex = 0;
+        activeChapterId = '';
+        detectedChapterCount = 0;
+        deletedChapterIds = new Set();
         fileName.textContent = normalized.name;
         fileInfo.textContent = `${normalized.lineCount.toLocaleString('zh-CN')} 行 · ${normalized.characterCount.toLocaleString('zh-CN')} 个字符`;
         document.title = `${normalized.name} · 聊天记录查看器`;
@@ -3012,14 +3023,54 @@
           .map((rule) => [rule.tag, rule.mode]));
       }
 
-      function filterBodyTagSource(value, tagModes) {
+      function bodyTagSegmentKey(segment) {
+        return segment?.type === 'text' ? 'text' : segment?.type === 'component' ? 'html' : '';
+      }
+
+      function pairedBodyHideTokenKeys(segments, tagModes) {
+        const pairedTokens = new Set();
+        const openingTags = [];
+        const tokenPattern = /<\s*(\/?)\s*([^\s/>]+)(?:\s[^<>]*?)?(\/?)\s*>/g;
+
+        segments.forEach((segment, segmentIndex) => {
+          const key = bodyTagSegmentKey(segment);
+          if (!key) return;
+          const source = String(segment[key] || '');
+          tokenPattern.lastIndex = 0;
+          let match;
+          while ((match = tokenPattern.exec(source)) !== null) {
+            const token = match[0];
+            const tag = normalizeCustomTagName(match[2]);
+            if (tagModes.get(tag) !== 'hide') continue;
+            const isClosing = Boolean(match[1]);
+            const isSelfClosing = Boolean(match[3]) || /\/\s*>$/.test(token);
+            if (isSelfClosing) continue;
+            const tokenKey = `${segmentIndex}:${match.index}`;
+            if (!isClosing) {
+              openingTags.push({ tag, tokenKey });
+              continue;
+            }
+            const opening = openingTags[openingTags.length - 1];
+            if (!opening || opening.tag !== tag) continue;
+            openingTags.pop();
+            pairedTokens.add(opening.tokenKey);
+            pairedTokens.add(tokenKey);
+          }
+        });
+        return pairedTokens;
+      }
+
+      function filterBodyTagSource(value, tagModes, {
+        segmentIndex = 0,
+        pairedTokens = new Set(),
+        hiddenTags = [],
+      } = {}) {
         const source = String(value || '');
-        if (!source || !tagModes.size) return source;
+        if (!source || !tagModes.size) return { value: source, changed: false };
         const tokenPattern = /<\s*(\/?)\s*([^\s/>]+)(?:\s[^<>]*?)?(\/?)\s*>/g;
         const output = [];
-        const hiddenTags = [];
         let cursor = 0;
-        let changed = false;
+        let changed = hiddenTags.length > 0;
         let match;
         while ((match = tokenPattern.exec(source)) !== null) {
           if (!hiddenTags.length) output.push(source.slice(cursor, match.index));
@@ -3029,16 +3080,27 @@
           const tag = normalizeCustomTagName(match[2]);
           const mode = tagModes.get(tag);
           const isSelfClosing = Boolean(match[3]) || /\/\s*>$/.test(token);
+          const isPairedHideToken = mode === 'hide' && pairedTokens.has(`${segmentIndex}:${match.index}`);
 
           if (hiddenTags.length) {
-            if (!isClosing && !isSelfClosing && mode === 'hide') hiddenTags.push(tag);
-            else if (isClosing && tag === hiddenTags[hiddenTags.length - 1]) hiddenTags.pop();
+            changed = true;
+            if (isPairedHideToken) {
+              if (!isClosing && !isSelfClosing) hiddenTags.push(tag);
+              else if (isClosing && tag === hiddenTags[hiddenTags.length - 1]) hiddenTags.pop();
+            }
             continue;
           }
           if (mode === 'hide') {
-            changed = true;
-            if (!isClosing && !isSelfClosing) hiddenTags.push(tag);
-            continue;
+            if (isSelfClosing) {
+              changed = true;
+              continue;
+            }
+            // 只有确实能配对的开标签才开始隐藏，避免不完整的标签吞掉后续章节。
+            if (!isClosing && isPairedHideToken) {
+              changed = true;
+              hiddenTags.push(tag);
+              continue;
+            }
           }
           if (mode === 'unwrap') {
             changed = true;
@@ -3047,20 +3109,22 @@
           output.push(token);
         }
         if (!hiddenTags.length) output.push(source.slice(cursor));
-        return changed ? output.join('') : source;
+        return { value: changed ? output.join('') : source, changed };
       }
 
       function applyBodyTagFilters(segments) {
         const tagModes = bodyTagModeMap();
         if (!tagModes.size) return segments;
-        return segments.flatMap((segment) => {
-          const key = segment.type === 'text' ? 'text' : segment.type === 'component' ? 'html' : '';
-          if (!key) return [segment];
+        const pairedTokens = pairedBodyHideTokenKeys(segments, tagModes);
+        const hiddenTags = [];
+        return segments.flatMap((segment, segmentIndex) => {
+          const key = bodyTagSegmentKey(segment);
+          if (!key) return hiddenTags.length ? [] : [segment];
           const source = String(segment[key] || '');
-          const filtered = filterBodyTagSource(source, tagModes);
-          if (filtered === source) return [segment];
-          if (!filtered.trim()) return [];
-          return [{ ...segment, [key]: filtered }];
+          const filtered = filterBodyTagSource(source, tagModes, { segmentIndex, pairedTokens, hiddenTags });
+          if (!filtered.changed) return [segment];
+          if (!filtered.value.trim()) return [];
+          return [{ ...segment, [key]: filtered.value }];
         });
       }
 
@@ -3126,6 +3190,21 @@
           if (cursor < segment.text.length) annotated.push({ ...segment, text: segment.text.slice(cursor) });
         });
         return { segments: annotated, chapters: detected };
+      }
+
+      function withoutDeletedChapters(segments, deletedIds) {
+        if (!deletedIds.size) return segments;
+        const visible = [];
+        let currentChapterId = '';
+        segments.forEach((segment) => {
+          if (segment.type === 'chapter') {
+            currentChapterId = segment.chapter.id;
+            if (!deletedIds.has(currentChapterId)) visible.push(segment);
+            return;
+          }
+          if (!currentChapterId || !deletedIds.has(currentChapterId)) visible.push(segment);
+        });
+        return visible;
       }
 
       function addChapterHeading(chapter, target = content) {
@@ -3604,8 +3683,11 @@
         if (!loadedText) return;
         const rendered = buildRenderSegments(loadedText);
         const chapterResult = annotateChapterSegments(applyBodyTagFilters(rendered.segments));
-        const segments = chapterResult.segments;
-        chapters = chapterResult.chapters;
+        detectedChapterCount = chapterResult.chapters.length;
+        const validChapterIds = new Set(chapterResult.chapters.map((chapter) => chapter.id));
+        deletedChapterIds = new Set([...deletedChapterIds].filter((chapterId) => validChapterIds.has(chapterId)));
+        const segments = withoutDeletedChapters(chapterResult.segments, deletedChapterIds);
+        chapters = chapterResult.chapters.filter((chapter) => !deletedChapterIds.has(chapter.id));
         if (!chapters.some((chapter) => chapter.id === activeChapterId)) activeChapterId = '';
         const { counts } = rendered;
         const enabled = rules.filter((rule) => rule.enabled);
@@ -3669,17 +3751,38 @@
         updateChapterMenuSelection();
       }
 
+      function deleteChapterFromReader(chapter) {
+        if (!chapter || deletedChapterIds.has(chapter.id)) return;
+        const wasCurrentChapter = currentChapterId() === chapter.id;
+        deletedChapterIds.add(chapter.id);
+        if (wasCurrentChapter) activeChapterId = '';
+        renderActiveContent();
+      }
+
+      function restoreDeletedChapters() {
+        if (!deletedChapterIds.size) return;
+        deletedChapterIds.clear();
+        renderActiveContent();
+      }
+
       function renderChapterMenu() {
         chapterCount.textContent = String(chapters.length);
         chapterCount.hidden = chapters.length === 0;
-        chapterSummary.textContent = chapters.length
-          ? `已按当前显示内容识别 ${chapters.length} 个章节；点标题即可跳转。`
+        const deletedCount = Math.max(0, detectedChapterCount - chapters.length);
+        chapterSummary.textContent = detectedChapterCount
+          ? `已识别 ${detectedChapterCount} 个章节；当前显示 ${chapters.length} 个。点标题跳转，右侧“删除”只会隐藏本次阅读中的本章。${deletedCount ? `已隐藏 ${deletedCount} 个，可恢复。` : ''}`
           : '会从当前显示内容中自动识别标题。';
+        chapterRestore.hidden = deletedCount === 0;
         chapterList.replaceChildren();
         chapterEmpty.hidden = chapters.length > 0;
+        chapterEmpty.textContent = detectedChapterCount
+          ? '当前所有识别章节都已隐藏。可点击“恢复已删章节”找回。'
+          : '未识别到章节标题。可让标题单独占一行，使用“第 1 章 …”“# 标题”或“Chapter 1”。';
         const currentId = currentChapterId();
 
         chapters.forEach((chapter, index) => {
+          const row = document.createElement('div');
+          row.className = 'chapter-row';
           const item = document.createElement('button');
           item.type = 'button';
           item.className = 'chapter-item';
@@ -3695,7 +3798,15 @@
           title.textContent = chapter.title;
           item.append(number, title);
           item.addEventListener('click', () => jumpToChapter(chapter.id));
-          chapterList.appendChild(item);
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'chapter-delete';
+          remove.textContent = '删除';
+          remove.title = `从本次阅读中删除：${chapter.title}`;
+          remove.setAttribute('aria-label', `从本次阅读中删除第 ${index + 1} 章：${chapter.title}`);
+          remove.addEventListener('click', () => deleteChapterFromReader(chapter));
+          row.append(item, remove);
+          chapterList.appendChild(row);
         });
       }
 
@@ -3996,6 +4107,7 @@
         applyReadingPreferences({ relayout: false });
       });
       chaptersToggle.addEventListener('click', () => setChapterMenuOpen(chapterMenu.hidden));
+      chapterRestore.addEventListener('click', () => restoreDeletedChapters());
       rulesToggle.addEventListener('click', () => setRuleMenuOpen(ruleMenu.hidden));
       skinsToggle.addEventListener('click', () => setSkinMenuOpen(skinMenu.hidden));
       textToggle.addEventListener('click', () => setTextMenuOpen(textMenu.hidden));
