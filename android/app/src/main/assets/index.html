@@ -147,9 +147,17 @@
       .chapter-item:hover, .chapter-item[aria-current="true"] { border-color: var(--accent); color: var(--ink); background: color-mix(in srgb, var(--accent) 10%, transparent); }
       .chapter-number { display: inline-grid; min-width: 24px; place-items: center; color: var(--accent); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; font-weight: 750; }
       .chapter-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .chapter-delete, .chapter-restore { flex: 0 0 auto; padding: 5px 8px; border-color: var(--line); color: var(--muted); font-size: 10px; }
+      .chapter-delete, .chapter-hidden-toggle, .chapter-hidden-restore, .chapter-hidden-permanent { flex: 0 0 auto; padding: 5px 8px; border-color: var(--line); color: var(--muted); font-size: 10px; }
       .chapter-delete:hover { border-color: color-mix(in srgb, #c85a55 58%, var(--line)); color: #e7a1a1; background: rgba(180, 70, 70, .12); }
-      .chapter-restore { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); white-space: nowrap; }
+      .chapter-hidden-toggle, .chapter-hidden-restore { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); white-space: nowrap; }
+      .chapter-hidden-panel { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+      .chapter-hidden-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+      .chapter-hidden-head strong { color: var(--ink); font-size: 11px; }
+      .chapter-hidden-list { display: grid; gap: 6px; }
+      .chapter-hidden-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 6px; padding: 7px; border: 1px solid var(--line); border-radius: 9px; background: rgba(0, 0, 0, .1); }
+      .chapter-hidden-title { min-width: 0; overflow: hidden; color: var(--ink); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+      .chapter-hidden-permanent { border-color: color-mix(in srgb, #c85a55 48%, var(--line)); color: #e7a1a1; }
+      .chapter-hidden-permanent:hover { border-color: #c85a55; color: #ffd2d0; background: rgba(180, 70, 70, .16); }
       .chapter-empty { margin: 0; padding: 13px 8px 4px; color: var(--muted); font-size: 12px; text-align: center; line-height: 1.6; }
       .rule-menu { padding: 12px 14px 14px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, rgba(10, 12, 17, .18), transparent), color-mix(in srgb, var(--paper) var(--menu-opacity), transparent); }
       .rule-menu-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
@@ -871,10 +879,17 @@
                 <span class="chapter-menu-title">章节目录</span>
                 <p id="chapter-summary" class="chapter-summary">会从当前显示内容中自动识别标题。</p>
               </div>
-              <button id="chapter-restore" class="chapter-restore" type="button" hidden>恢复已删章节</button>
+              <button id="chapter-hidden-toggle" class="chapter-hidden-toggle" type="button" aria-expanded="false" hidden>已隐藏清单 · <span id="chapter-hidden-count">0</span></button>
             </div>
             <div id="chapter-list" class="chapter-list"></div>
             <p id="chapter-empty" class="chapter-empty">未识别到章节标题。可让标题单独占一行，使用“第 1 章 …”“# 标题”或“Chapter 1”。</p>
+            <section id="chapter-hidden-panel" class="chapter-hidden-panel" hidden>
+              <div class="chapter-hidden-head">
+                <strong>已隐藏清单</strong>
+                <button id="chapter-hidden-restore-all" class="chapter-hidden-restore" type="button">全部恢复</button>
+              </div>
+              <div id="chapter-hidden-list" class="chapter-hidden-list"></div>
+            </section>
           </section>
           <section id="rule-menu" class="rule-menu" hidden>
             <div class="rule-menu-head">
@@ -1291,7 +1306,11 @@
       const chapterSummary = document.getElementById('chapter-summary');
       const chapterList = document.getElementById('chapter-list');
       const chapterEmpty = document.getElementById('chapter-empty');
-      const chapterRestore = document.getElementById('chapter-restore');
+      const chapterHiddenToggle = document.getElementById('chapter-hidden-toggle');
+      const chapterHiddenCount = document.getElementById('chapter-hidden-count');
+      const chapterHiddenPanel = document.getElementById('chapter-hidden-panel');
+      const chapterHiddenList = document.getElementById('chapter-hidden-list');
+      const chapterHiddenRestoreAll = document.getElementById('chapter-hidden-restore-all');
       const rulesToggle = document.getElementById('rules-toggle');
       const ruleCount = document.getElementById('rule-count');
       const ruleMenu = document.getElementById('rule-menu');
@@ -1361,8 +1380,9 @@
       let loadedText = '';
       let rules = [];
       let chapters = [];
-      let detectedChapterCount = 0;
-      let deletedChapterIds = new Set();
+      let detectedChapters = [];
+      let hiddenChapterKeys = new Set();
+      let activeBookId = '';
       let activeChapterId = '';
       let viewMode = 'scroll';
       let flipPages = [];
@@ -1395,6 +1415,7 @@
       const READING_STORAGE_KEY = 'txt-chat-viewer-reading-v1';
       const BODY_TAG_STORAGE_KEY = 'txt-chat-viewer-body-tags-v1';
       const RULE_STORAGE_KEY = 'txt-chat-viewer-rules-v1';
+      const HIDDEN_CHAPTER_STORAGE_PREFIX = 'txt-chat-viewer-hidden-chapters-v1:';
       const LIBRARY_DB_NAME = 'txt-chat-viewer-library-v1';
       const LIBRARY_STORE_NAME = 'books';
       const LIBRARY_FALLBACK_KEY = 'txt-chat-viewer-library-fallback-v1';
@@ -1677,6 +1698,31 @@
         return `book-${(hash >>> 0).toString(36)}-${source.length.toString(36)}`;
       }
 
+      function hiddenChapterStorageKey(bookId) {
+        return `${HIDDEN_CHAPTER_STORAGE_PREFIX}${encodeURIComponent(String(bookId || 'unsaved'))}`;
+      }
+
+      function loadHiddenChapterKeys(bookId) {
+        try {
+          const stored = JSON.parse(localStorage.getItem(hiddenChapterStorageKey(bookId)) || '[]');
+          return new Set(Array.isArray(stored) ? stored.filter((key) => typeof key === 'string' && key) : []);
+        } catch (_) {
+          return new Set();
+        }
+      }
+
+      function saveHiddenChapterKeys() {
+        if (!activeBookId) return false;
+        try {
+          const storageKey = hiddenChapterStorageKey(activeBookId);
+          if (hiddenChapterKeys.size) localStorage.setItem(storageKey, JSON.stringify([...hiddenChapterKeys]));
+          else localStorage.removeItem(storageKey);
+          return true;
+        } catch (_) {
+          return false;
+        }
+      }
+
       function normalizeBook(value) {
         if (!value || typeof value !== 'object' || typeof value.text !== 'string') return null;
         const text = value.text;
@@ -1887,8 +1933,9 @@
         loadedText = normalized.text || '（这个文件是空的）';
         flipIndex = 0;
         activeChapterId = '';
-        detectedChapterCount = 0;
-        deletedChapterIds = new Set();
+        activeBookId = normalized.id;
+        detectedChapters = [];
+        hiddenChapterKeys = loadHiddenChapterKeys(activeBookId);
         fileName.textContent = normalized.name;
         fileInfo.textContent = `${normalized.lineCount.toLocaleString('zh-CN')} 行 · ${normalized.characterCount.toLocaleString('zh-CN')} 个字符`;
         document.title = `${normalized.name} · 聊天记录查看器`;
@@ -3163,6 +3210,7 @@
       function annotateChapterSegments(segments) {
         const annotated = [];
         const detected = [];
+        const titleOccurrences = new Map();
         let sequence = 0;
         segments.forEach((segment) => {
           if (segment.type !== 'text') {
@@ -3178,10 +3226,14 @@
           markers.forEach((marker) => {
             if (marker.start > cursor) annotated.push({ ...segment, text: segment.text.slice(cursor, marker.start) });
             sequence += 1;
+            const titleOccurrence = (titleOccurrences.get(marker.title) || 0) + 1;
+            titleOccurrences.set(marker.title, titleOccurrence);
             const chapter = {
               id: `chapter-${sequence}`,
               anchorId: `chapter-anchor-${sequence}`,
               title: marker.title,
+              titleOccurrence,
+              key: JSON.stringify([marker.title, titleOccurrence]),
             };
             annotated.push({ type: 'chapter', chapter });
             detected.push(chapter);
@@ -3192,17 +3244,17 @@
         return { segments: annotated, chapters: detected };
       }
 
-      function withoutDeletedChapters(segments, deletedIds) {
-        if (!deletedIds.size) return segments;
+      function withoutHiddenChapters(segments, hiddenKeys) {
+        if (!hiddenKeys.size) return segments;
         const visible = [];
-        let currentChapterId = '';
+        let currentChapterKey = '';
         segments.forEach((segment) => {
           if (segment.type === 'chapter') {
-            currentChapterId = segment.chapter.id;
-            if (!deletedIds.has(currentChapterId)) visible.push(segment);
+            currentChapterKey = segment.chapter.key;
+            if (!hiddenKeys.has(currentChapterKey)) visible.push(segment);
             return;
           }
-          if (!currentChapterId || !deletedIds.has(currentChapterId)) visible.push(segment);
+          if (!currentChapterKey || !hiddenKeys.has(currentChapterKey)) visible.push(segment);
         });
         return visible;
       }
@@ -3683,11 +3735,9 @@
         if (!loadedText) return;
         const rendered = buildRenderSegments(loadedText);
         const chapterResult = annotateChapterSegments(applyBodyTagFilters(rendered.segments));
-        detectedChapterCount = chapterResult.chapters.length;
-        const validChapterIds = new Set(chapterResult.chapters.map((chapter) => chapter.id));
-        deletedChapterIds = new Set([...deletedChapterIds].filter((chapterId) => validChapterIds.has(chapterId)));
-        const segments = withoutDeletedChapters(chapterResult.segments, deletedChapterIds);
-        chapters = chapterResult.chapters.filter((chapter) => !deletedChapterIds.has(chapter.id));
+        detectedChapters = chapterResult.chapters;
+        const segments = withoutHiddenChapters(chapterResult.segments, hiddenChapterKeys);
+        chapters = detectedChapters.filter((chapter) => !hiddenChapterKeys.has(chapter.key));
         if (!chapters.some((chapter) => chapter.id === activeChapterId)) activeChapterId = '';
         const { counts } = rendered;
         const enabled = rules.filter((rule) => rule.enabled);
@@ -3751,32 +3801,133 @@
         updateChapterMenuSelection();
       }
 
-      function deleteChapterFromReader(chapter) {
-        if (!chapter || deletedChapterIds.has(chapter.id)) return;
+      function hideChapterFromReader(chapter) {
+        if (!chapter || !chapter.key || hiddenChapterKeys.has(chapter.key)) return;
         const wasCurrentChapter = currentChapterId() === chapter.id;
-        deletedChapterIds.add(chapter.id);
+        hiddenChapterKeys.add(chapter.key);
+        saveHiddenChapterKeys();
         if (wasCurrentChapter) activeChapterId = '';
         renderActiveContent();
       }
 
-      function restoreDeletedChapters() {
-        if (!deletedChapterIds.size) return;
-        deletedChapterIds.clear();
+      function restoreHiddenChapter(chapter) {
+        if (!chapter?.key || !hiddenChapterKeys.delete(chapter.key)) return;
+        saveHiddenChapterKeys();
         renderActiveContent();
+      }
+
+      function restoreAllHiddenChapters() {
+        if (!hiddenChapterKeys.size) return;
+        hiddenChapterKeys.clear();
+        saveHiddenChapterKeys();
+        renderActiveContent();
+      }
+
+      function rawChapterRange(chapter) {
+        if (!chapter?.title || !Number.isInteger(chapter.titleOccurrence)) return null;
+        const markers = findChapterMarkers(loadedText);
+        let titleOccurrence = 0;
+        for (let index = 0; index < markers.length; index += 1) {
+          const marker = markers[index];
+          if (marker.title !== chapter.title) continue;
+          titleOccurrence += 1;
+          if (titleOccurrence !== chapter.titleOccurrence) continue;
+          return {
+            start: marker.start,
+            end: markers[index + 1]?.start ?? loadedText.length,
+          };
+        }
+        return null;
+      }
+
+      function textWithoutChapterRange(source, range) {
+        const before = source.slice(0, range.start).replace(/[ \t\r\n]+$/u, '');
+        const after = source.slice(range.end).replace(/^[ \t\r\n]+/u, '');
+        if (!before) return after;
+        if (!after) return before;
+        return `${before}\n\n${after}`;
+      }
+
+      async function permanentlyDeleteHiddenChapter(chapter) {
+        const range = rawChapterRange(chapter);
+        if (!range) {
+          alert(`无法安全定位《${chapter.title}》在原始文本中的位置，因此没有删除。你仍可在书架的“编辑”中手动修改。`);
+          return;
+        }
+        if (!window.confirm(`永久删除《${chapter.title}》？\n\n这会从书架里的本地副本删除整章，无法通过“恢复”找回；你导入时的原始 TXT 文件不受影响。`)) return;
+        const confirmation = window.prompt(`最后确认：请输入“永久删除”四个字。\n\n目标章节：${chapter.title}`, '');
+        if (confirmation === null) return;
+        if (confirmation.trim() !== '永久删除') {
+          alert('输入内容不正确，已取消永久删除。');
+          return;
+        }
+
+        const nextText = textWithoutChapterRange(loadedText, range);
+        try {
+          const saved = await saveLibraryBook({
+            id: activeBookId,
+            name: draftName.value || fileName.textContent || '未命名聊天记录',
+            text: nextText,
+            opened: true,
+          });
+          hiddenChapterKeys.delete(chapter.key);
+          saveHiddenChapterKeys();
+          loadedText = saved.text || '（这个文件是空的）';
+          activeBookId = saved.id;
+          activeChapterId = '';
+          flipIndex = 0;
+          fileInfo.textContent = `${saved.lineCount.toLocaleString('zh-CN')} 行 · ${saved.characterCount.toLocaleString('zh-CN')} 个字符`;
+          fillDraftFromBook(saved, `已永久删除《${chapter.title}》的本地书架副本；原始 TXT 未改动。`);
+          renderActiveContent({ resetFlip: true });
+          alert(`已从本地书架副本永久删除《${chapter.title}》。原始 TXT 文件没有改动。`);
+        } catch (_) {
+          alert('永久删除失败：浏览器没有允许修改本地书架，原内容未改动。');
+        }
+      }
+
+      function renderHiddenChapterList() {
+        const hiddenChapters = detectedChapters.filter((chapter) => hiddenChapterKeys.has(chapter.key));
+        chapterHiddenCount.textContent = String(hiddenChapters.length);
+        chapterHiddenToggle.hidden = hiddenChapters.length === 0;
+        if (!hiddenChapters.length) chapterHiddenPanel.hidden = true;
+        chapterHiddenToggle.setAttribute('aria-expanded', String(!chapterHiddenPanel.hidden && hiddenChapters.length > 0));
+        chapterHiddenList.replaceChildren();
+
+        hiddenChapters.forEach((chapter) => {
+          const row = document.createElement('div');
+          row.className = 'chapter-hidden-row';
+          const title = document.createElement('span');
+          title.className = 'chapter-hidden-title';
+          title.textContent = chapter.title;
+          title.title = chapter.title;
+          const restore = document.createElement('button');
+          restore.type = 'button';
+          restore.className = 'chapter-hidden-restore';
+          restore.textContent = '恢复';
+          restore.setAttribute('aria-label', `恢复章节：${chapter.title}`);
+          restore.addEventListener('click', () => restoreHiddenChapter(chapter));
+          const permanent = document.createElement('button');
+          permanent.type = 'button';
+          permanent.className = 'chapter-hidden-permanent';
+          permanent.textContent = '永久删除';
+          permanent.setAttribute('aria-label', `永久删除章节：${chapter.title}`);
+          permanent.addEventListener('click', () => permanentlyDeleteHiddenChapter(chapter));
+          row.append(title, restore, permanent);
+          chapterHiddenList.appendChild(row);
+        });
       }
 
       function renderChapterMenu() {
         chapterCount.textContent = String(chapters.length);
         chapterCount.hidden = chapters.length === 0;
-        const deletedCount = Math.max(0, detectedChapterCount - chapters.length);
-        chapterSummary.textContent = detectedChapterCount
-          ? `已识别 ${detectedChapterCount} 个章节；当前显示 ${chapters.length} 个。点标题跳转，右侧“删除”只会隐藏本次阅读中的本章。${deletedCount ? `已隐藏 ${deletedCount} 个，可恢复。` : ''}`
+        const hiddenCount = detectedChapters.filter((chapter) => hiddenChapterKeys.has(chapter.key)).length;
+        chapterSummary.textContent = detectedChapters.length
+          ? `已识别 ${detectedChapters.length} 个章节；当前显示 ${chapters.length} 个。右侧“删除”会加入本书的已隐藏清单。${hiddenCount ? `已隐藏 ${hiddenCount} 个。` : ''}`
           : '会从当前显示内容中自动识别标题。';
-        chapterRestore.hidden = deletedCount === 0;
         chapterList.replaceChildren();
         chapterEmpty.hidden = chapters.length > 0;
-        chapterEmpty.textContent = detectedChapterCount
-          ? '当前所有识别章节都已隐藏。可点击“恢复已删章节”找回。'
+        chapterEmpty.textContent = detectedChapters.length
+          ? '当前所有识别章节都已隐藏。可打开“已隐藏清单”恢复或永久删除。'
           : '未识别到章节标题。可让标题单独占一行，使用“第 1 章 …”“# 标题”或“Chapter 1”。';
         const currentId = currentChapterId();
 
@@ -3802,12 +3953,13 @@
           remove.type = 'button';
           remove.className = 'chapter-delete';
           remove.textContent = '删除';
-          remove.title = `从本次阅读中删除：${chapter.title}`;
-          remove.setAttribute('aria-label', `从本次阅读中删除第 ${index + 1} 章：${chapter.title}`);
-          remove.addEventListener('click', () => deleteChapterFromReader(chapter));
+          remove.title = `加入已隐藏清单：${chapter.title}`;
+          remove.setAttribute('aria-label', `隐藏第 ${index + 1} 章并加入已隐藏清单：${chapter.title}`);
+          remove.addEventListener('click', () => hideChapterFromReader(chapter));
           row.append(item, remove);
           chapterList.appendChild(row);
         });
+        renderHiddenChapterList();
       }
 
       function renderRuleMenu() {
@@ -4107,7 +4259,11 @@
         applyReadingPreferences({ relayout: false });
       });
       chaptersToggle.addEventListener('click', () => setChapterMenuOpen(chapterMenu.hidden));
-      chapterRestore.addEventListener('click', () => restoreDeletedChapters());
+      chapterHiddenToggle.addEventListener('click', () => {
+        chapterHiddenPanel.hidden = !chapterHiddenPanel.hidden;
+        chapterHiddenToggle.setAttribute('aria-expanded', String(!chapterHiddenPanel.hidden));
+      });
+      chapterHiddenRestoreAll.addEventListener('click', () => restoreAllHiddenChapters());
       rulesToggle.addEventListener('click', () => setRuleMenuOpen(ruleMenu.hidden));
       skinsToggle.addEventListener('click', () => setSkinMenuOpen(skinMenu.hidden));
       textToggle.addEventListener('click', () => setTextMenuOpen(textMenu.hidden));
