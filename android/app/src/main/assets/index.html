@@ -252,9 +252,9 @@
       .body-tag-head strong { color: var(--ink); font-size: 12px; }
       .body-tag-head button { padding: 4px 7px; font-size: 10px; }
       .body-tag-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
-      .body-tag-tools input { min-width: 0; min-height: 31px; padding: 5px 8px; border: 1px solid var(--line); border-radius: var(--control-radius); color: var(--ink); background: color-mix(in srgb, var(--paper-2) 72%, transparent); font: inherit; font-size: 12px; }
-      .body-tag-tools input:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent); }
-      .body-tag-tools button { padding: 5px 9px; color: var(--accent); border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); }
+      .body-tag-tools textarea { min-width: 0; min-height: 54px; padding: 6px 8px; resize: vertical; border: 1px solid var(--line); border-radius: var(--control-radius); color: var(--ink); background: color-mix(in srgb, var(--paper-2) 72%, transparent); font: inherit; font-size: 12px; }
+      .body-tag-tools textarea:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent); }
+      .body-tag-tools button { align-self: end; padding: 5px 9px; color: var(--accent); border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); }
       .body-tag-list { display: grid; gap: 6px; margin-top: 8px; }
       .body-tag-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(116px, auto) 27px; align-items: center; gap: 7px; padding: 6px 7px; border: 1px solid var(--line); border-radius: 9px; background: rgba(0, 0, 0, .1); }
       .body-tag-name { overflow: hidden; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
@@ -680,8 +680,9 @@
       .tts-menu .tts-chip { border-color: var(--tts-line); color: var(--tts-muted); background: var(--tts-input); }
       .tts-menu .tts-chip:hover, .tts-menu .tts-chip.is-on { border-color: var(--tts-accent); color: var(--tts-ink); background: color-mix(in srgb, var(--tts-accent) 13%, var(--tts-input)); }
       .tts-menu .tts-tag-tools { display: flex; align-items: center; gap: 7px; }
-      .tts-menu .tts-tag-add { display: flex; flex: 1 1 220px; gap: 7px; min-width: 0; }
-      .tts-menu .tts-tag-add .tts-input { flex: 1 1 130px; min-width: 0; }
+      .tts-menu .tts-tag-add { display: flex; flex: 1 1 220px; align-items: stretch; flex-direction: column; gap: 7px; min-width: 0; }
+      .tts-menu .tts-tag-add .tts-input { flex: 1 1 auto; min-width: 0; min-height: 58px; resize: vertical; }
+      .tts-menu .tts-tag-add .tts-btn { align-self: end; }
       .tts-menu .tts-chip-wrap { display: inline-flex; min-width: 0; }
       .tts-menu .tts-chip-wrap .tts-chip { border-top-right-radius: 0; border-bottom-right-radius: 0; }
       .tts-menu .tts-chip-delete { width: 25px; min-height: 0; padding: 0; border: 1px solid var(--tts-line); border-left: 0; border-radius: 0 calc(var(--control-radius) - 1px) calc(var(--control-radius) - 1px) 0; color: var(--tts-muted); background: var(--tts-input); font: 700 14px/1 var(--ui-font); cursor: pointer; }
@@ -1000,8 +1001,8 @@
                 <h4 class="tts-card-title">4 · HTML 标签过滤</h4>
                 <div class="tts-tag-tools">
                   <div class="tts-tag-add">
-                    <input class="tts-input" id="tts-tag-input" type="text" autocomplete="off" spellcheck="false" placeholder="如 &lt;status_bar&gt;、think 或任意自定义标签" aria-label="添加要过滤的 HTML 标签" />
-                    <button class="tts-btn tts-btn-accent" id="tts-tag-add" type="button">＋ 添加标签</button>
+                    <textarea class="tts-input" id="tts-tag-input" rows="2" autocomplete="off" spellcheck="false" placeholder="可一次粘贴多个标签：每行一个，或用逗号分隔&#10;如 &lt;status_bar&gt;、think" aria-label="批量导入要过滤的 HTML 标签"></textarea>
+                    <button class="tts-btn tts-btn-accent" id="tts-tag-add" type="button">＋ 导入标签</button>
                   </div>
                   <button class="tts-btn" id="tts-tag-restore" type="button">恢复空白默认</button>
                 </div>
@@ -1204,10 +1205,10 @@
                 <button id="body-tag-reset" type="button">清空列表</button>
               </div>
               <div class="body-tag-tools">
-                <input id="body-tag-input" type="text" placeholder="例如 &lt;status_bar&gt;" autocomplete="off" aria-label="输入要处理的正文标签" />
-                <button id="body-tag-add" type="button">添加</button>
+                <textarea id="body-tag-input" rows="2" placeholder="可一次粘贴多个标签：每行一个，或用逗号分隔&#10;例如 &lt;status_bar&gt;、think" autocomplete="off" aria-label="批量导入要处理的正文标签"></textarea>
+                <button id="body-tag-add" type="button">导入标签</button>
               </div>
-              <p class="body-tag-feedback">可添加任意标签名。完整屏蔽会去掉标签和内容；只去标签会保留里面的正文。</p>
+              <p class="body-tag-feedback">可一次粘贴多个任意标签名：每行一个，或用中英文逗号、分号分隔。完整屏蔽会去掉标签和内容；只去标签会保留里面的正文。</p>
               <div id="body-tag-list" class="body-tag-list"></div>
               <p id="body-tag-feedback" class="body-tag-feedback" role="status" aria-live="polite"></p>
             </section>
@@ -1447,12 +1448,24 @@
       const FONT_FILE_EXTENSIONS = new Set(['ttf', 'otf', 'woff', 'woff2']);
 
       function normalizeCustomTagName(value) {
-        const source = String(value || '').trim()
-          .replace(/^<\s*\/?/, '')
-          .replace(/\s*\/?>$/, '')
-          .trim();
+        const source = String(value || '').trim();
+        if (!source) return '';
+        const angleMatch = /^<\s*\/?\s*([^\s/>]+)(?:\s[^<>]*?)?\/?\s*>$/u.exec(source);
+        const plainMatch = /^([^\s,，;；、|<>\r\n\t]+)$/u.exec(source);
         // 标签名按纯文本逐个比较，不会把用户输入拼进 CSS 选择器。
-        return source ? source.toLowerCase() : '';
+        return (angleMatch?.[1] || plainMatch?.[1] || '').trim().toLowerCase();
+      }
+
+      function parseTagBatch(value) {
+        const source = String(value || '');
+        const tokens = source.match(/<\s*\/?\s*[^\s/>]+(?:\s[^<>]*?)?\/?\s*>|[^\s,，;；、|<>\r\n\t]+/gu) || [];
+        const seen = new Set();
+        return tokens.flatMap((token) => {
+          const tag = normalizeCustomTagName(token);
+          if (!tag || seen.has(tag)) return [];
+          seen.add(tag);
+          return [tag];
+        });
       }
 
       function normalizedNumber(value, min, max, fallback, step = 0.01) {
@@ -2968,23 +2981,28 @@
         });
       }
 
-      function addBodyTagRule(value = bodyTagInput.value) {
-        const tag = normalizeCustomTagName(value);
-        if (!tag) {
-          setBodyTagFeedback('请输入标签名，例如 <status_bar>。', 'err');
+      function addBodyTagRules(value = bodyTagInput.value) {
+        const tags = parseTagBatch(value);
+        if (!tags.length) {
+          setBodyTagFeedback('请输入至少一个标签名，例如 <status_bar>。', 'err');
           bodyTagInput.focus();
           return;
         }
-        if (bodyTagRules.some((rule) => rule.tag === tag)) {
-          setBodyTagFeedback(`<${tag}> 已在列表中。`, 'err');
+        const existing = new Set(bodyTagRules.map((rule) => rule.tag));
+        const added = tags.filter((tag) => !existing.has(tag));
+        if (!added.length) {
+          setBodyTagFeedback('没有新增标签：粘贴的标签都已在列表中。', 'ok');
+          bodyTagInput.value = '';
           bodyTagInput.focus();
           return;
         }
-        bodyTagRules.push({ tag, mode: 'hide' });
+        bodyTagRules.push(...added.map((tag) => ({ tag, mode: 'hide' })));
         saveBodyTagRules();
         bodyTagInput.value = '';
         renderBodyTagRules();
-        setBodyTagFeedback(`已添加 <${tag}>，默认“完整屏蔽”。`, 'ok');
+        bodyTagInput.focus();
+        const skipped = tags.length - added.length;
+        setBodyTagFeedback(`已导入 ${added.length} 个正文标签，默认“完整屏蔽”。${skipped ? `已跳过 ${skipped} 个重复项。` : ''}`, 'ok');
         if (loadedText) renderActiveContent();
       }
 
@@ -4077,11 +4095,11 @@
         readingPreferences.flipAnimation = !readingPreferences.flipAnimation;
         applyReadingPreferences({ relayout: false });
       });
-      bodyTagAdd.addEventListener('click', () => addBodyTagRule());
+      bodyTagAdd.addEventListener('click', () => addBodyTagRules());
       bodyTagInput.addEventListener('keydown', (event) => {
-        if (event.key !== 'Enter') return;
+        if (event.key !== 'Enter' || (!event.ctrlKey && !event.metaKey)) return;
         event.preventDefault();
-        addBodyTagRule();
+        addBodyTagRules();
       });
       bodyTagReset.addEventListener('click', () => {
         bodyTagRules = [];
@@ -4290,11 +4308,11 @@
           });
 
           const tagInput = document.getElementById('tts-tag-input');
-          document.getElementById('tts-tag-add').addEventListener('click', () => this.addTag(tagInput.value));
+          document.getElementById('tts-tag-add').addEventListener('click', () => this.addTags(tagInput.value));
           tagInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
+            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
               event.preventDefault();
-              this.addTag(tagInput.value);
+              this.addTags(tagInput.value);
             }
           });
           document.getElementById('tts-tag-restore').addEventListener('click', () => this.restoreDefaultTags());
@@ -4337,26 +4355,29 @@
           feedback.className = 'tts-tag-feedback' + (tone ? ` ${tone}` : '');
           feedback.textContent = text;
         },
-        addTag(value) {
-          const tag = normalizeTtsTagName(value);
+        addTags(value) {
+          const tags = parseTagBatch(value);
           const input = document.getElementById('tts-tag-input');
-          if (!tag) {
-            this.setTagFeedback('请输入要处理的标签名，例如 <status_bar>。', 'err');
+          if (!tags.length) {
+            this.setTagFeedback('请输入至少一个标签名，例如 <status_bar>。', 'err');
             input.focus();
             return;
           }
-          if (this.tagOptions.includes(tag)) {
-            this.setTagFeedback(`<${tag}> 已在列表里。`, 'ok');
+          const existing = new Set(this.tagOptions);
+          const added = tags.filter((tag) => !existing.has(tag));
+          if (!added.length) {
+            this.setTagFeedback('没有新增标签：粘贴的标签都已在列表中。', 'ok');
             input.value = '';
             input.focus();
             return;
           }
-          this.tagOptions.push(tag);
+          this.tagOptions.push(...added);
           this.saveTagOptions();
           this.renderTagChips();
           input.value = '';
           input.focus();
-          this.setTagFeedback(`已添加 <${tag}>。它目前是“读取”状态，点一下可改为屏蔽。`, 'ok');
+          const skipped = tags.length - added.length;
+          this.setTagFeedback(`已导入 ${added.length} 个标签。它们目前均为“读取”状态，点标签可改为屏蔽。${skipped ? `已跳过 ${skipped} 个重复项。` : ''}`, 'ok');
         },
         removeTag(tag) {
           this.tagOptions = this.tagOptions.filter((item) => item !== tag);
