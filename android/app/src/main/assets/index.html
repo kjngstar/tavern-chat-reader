@@ -141,6 +141,9 @@
       .chapter-menu-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
       .chapter-menu-title { color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
       .chapter-summary { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+      .chapter-menu-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
+      .chapter-mode-control { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 10px; white-space: nowrap; }
+      .chapter-mode-control select { min-height: 29px; padding: 4px 6px; border: 1px solid var(--line); border-radius: var(--control-radius); color: var(--ink); background: color-mix(in srgb, var(--paper-2) 82%, transparent); font: inherit; font-size: 10px; }
       .chapter-list { display: grid; gap: 6px; }
       .chapter-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 6px; }
       .chapter-item { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 9px; width: 100%; padding: 8px 9px; border-color: var(--line); border-radius: 9px; color: var(--ink); background: rgba(0, 0, 0, .12); text-align: left; }
@@ -777,10 +780,10 @@
           <p class="kicker">离线阅读</p>
           <h1>聊天记录查看器</h1>
         </div>
-        <p class="privacy">TXT 和正则规则都只在这台电脑的浏览器中读取，不会上传。</p>
+        <p class="privacy">TXT、酒馆 JSON/JSONL 和正则规则都只在本机读取，不会上传。</p>
       </header>
 
-      <input id="file-input" type="file" accept=".txt,text/plain" hidden />
+      <input id="file-input" type="file" accept=".txt,.json,.jsonl,text/plain,application/json,application/x-ndjson" hidden />
       <input id="rule-input" type="file" accept=".txt,.json,text/plain,application/json" multiple hidden />
       <input id="skin-input" type="file" accept=".json,.txt,application/json,text/plain" multiple hidden />
       <input id="background-image-input" type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.avif,.svg" hidden />
@@ -789,10 +792,10 @@
       <section id="home-panel" class="home-panel">
       <section id="drop-zone" class="drop-zone" role="button" tabindex="0">
         <div>
-          <strong>导入聊天 TXT，再选填正则规则</strong>
-          <p>酒馆 Regex JSON 会按 `findRegex / replaceString` 在正文原位渲染；也兼容普通 `/.../gis`。</p>
+          <strong>导入聊天 TXT、JSON 或 JSONL，再选填正则规则</strong>
+          <p>兼容酒馆聊天 JSONL；Regex JSON 会按 `findRegex / replaceString` 在正文原位渲染。</p>
           <div class="drop-actions">
-            <button id="pick-txt" class="file-button" type="button">选择 .txt 文件</button>
+            <button id="pick-txt" class="file-button" type="button">选择聊天文件</button>
             <button id="pick-rule" class="file-button secondary" type="button">导入正则</button>
           </div>
         </div>
@@ -802,7 +805,7 @@
         <div class="quick-editor-head">
           <div>
             <h2 id="quick-editor-title">直接粘贴 / 编辑正文</h2>
-            <p>不必先做 TXT 文件；保存后会进入本机书架。</p>
+            <p>不必先做文件；保存后会进入本机书架。</p>
           </div>
         </div>
         <input id="draft-name" class="draft-name" type="text" maxlength="120" value="未命名聊天记录" aria-label="聊天记录名称" placeholder="聊天记录名称" />
@@ -810,7 +813,7 @@
         <div class="draft-actions">
           <button id="open-draft" class="primary-action" type="button">保存并阅读</button>
           <button id="save-draft" type="button">仅保存到书架</button>
-          <p id="draft-status" class="draft-status">导入 TXT 也会自动存进书架。</p>
+          <p id="draft-status" class="draft-status">导入 TXT、JSON 或 JSONL 也会自动存进书架。</p>
         </div>
       </section>
 
@@ -823,7 +826,7 @@
           <span id="bookshelf-count" class="bookshelf-count">0 本</span>
         </div>
         <div id="book-list" class="book-list"></div>
-        <p id="bookshelf-empty" class="bookshelf-empty">书架还是空的。导入 TXT 或在上方粘贴正文后保存即可。</p>
+        <p id="bookshelf-empty" class="bookshelf-empty">书架还是空的。导入聊天文件或在上方粘贴正文后保存即可。</p>
       </section>
       </section>
 
@@ -879,7 +882,15 @@
                 <span class="chapter-menu-title">章节目录</span>
                 <p id="chapter-summary" class="chapter-summary">会从当前显示内容中自动识别标题。</p>
               </div>
-              <button id="chapter-hidden-toggle" class="chapter-hidden-toggle" type="button" aria-expanded="false" hidden>已隐藏清单 · <span id="chapter-hidden-count">0</span></button>
+              <div class="chapter-menu-actions">
+                <label class="chapter-mode-control">切分
+                  <select id="chapter-mode" aria-label="目录切分方式">
+                    <option value="title">按标题</option>
+                    <option value="floor">按楼层</option>
+                  </select>
+                </label>
+                <button id="chapter-hidden-toggle" class="chapter-hidden-toggle" type="button" aria-expanded="false" hidden>已隐藏清单 · <span id="chapter-hidden-count">0</span></button>
+              </div>
             </div>
             <div id="chapter-list" class="chapter-list"></div>
             <p id="chapter-empty" class="chapter-empty">未识别到章节标题。可让标题单独占一行，使用“第 1 章 …”“# 标题”或“Chapter 1”。</p>
@@ -1259,6 +1270,88 @@
     </div>
 
     <script>
+      (function () {
+        window.__tavernReaderBooted = false;
+        window.__tavernReaderBootError = '';
+
+        if (!Array.prototype.flatMap) {
+          Object.defineProperty(Array.prototype, 'flatMap', {
+            configurable: true,
+            writable: true,
+            value: function (callback, thisArg) {
+              var flattened = [];
+              for (var index = 0; index < this.length; index += 1) {
+                if (!(index in this)) continue;
+                var mapped = callback.call(thisArg, this[index], index, this);
+                if (Array.isArray(mapped)) {
+                  for (var childIndex = 0; childIndex < mapped.length; childIndex += 1) flattened.push(mapped[childIndex]);
+                } else {
+                  flattened.push(mapped);
+                }
+              }
+              return flattened;
+            }
+          });
+        }
+        if (!Object.entries) {
+          Object.entries = function (object) {
+            return Object.keys(object).map(function (key) { return [key, object[key]]; });
+          };
+        }
+        if (!Object.values) {
+          Object.values = function (object) {
+            return Object.keys(object).map(function (key) { return object[key]; });
+          };
+        }
+        if (window.NodeList && !NodeList.prototype.forEach) {
+          NodeList.prototype.forEach = Array.prototype.forEach;
+        }
+        if (window.Event && !Event.prototype.composedPath) {
+          Event.prototype.composedPath = function () {
+            var path = [];
+            var node = this.target;
+            while (node) {
+              path.push(node);
+              node = node.parentNode || node.host;
+            }
+            path.push(window);
+            return path;
+          };
+        }
+
+        window.addEventListener('error', function (event) {
+          window.__tavernReaderBootError = event && event.message ? event.message : '脚本无法启动';
+        });
+        window.setTimeout(function () {
+          if (window.__tavernReaderBooted || document.getElementById('reader-boot-error')) return;
+          var panel = document.createElement('section');
+          panel.id = 'reader-boot-error';
+          panel.setAttribute('role', 'alert');
+          panel.style.cssText = 'position:fixed;z-index:2147483647;inset:16px;max-width:560px;height:max-content;margin:auto;padding:22px;border:1px solid #caa861;border-radius:18px;background:#171a20;color:#f7f1e5;font:16px/1.65 sans-serif;box-shadow:0 24px 80px rgba(0,0,0,.65);pointer-events:auto';
+          var title = document.createElement('strong');
+          title.style.cssText = 'display:block;font-size:20px;margin-bottom:8px';
+          title.textContent = '阅读器没有成功启动';
+          var explanation = document.createElement('p');
+          explanation.style.margin = '0 0 14px';
+          explanation.textContent = '请先更新手机的 Android System WebView 或 Chrome，然后重新打开。书架和设置不会因此清空。';
+          var detail = document.createElement('code');
+          detail.style.cssText = 'display:block;max-height:96px;overflow:auto;margin-bottom:16px;padding:8px;border-radius:8px;background:#0d0f13;color:#f1c97a;white-space:pre-wrap';
+          detail.textContent = window.__tavernReaderBootError || '当前 WebView 不支持页面所需的脚本语法。';
+          var reload = document.createElement('button');
+          reload.type = 'button';
+          reload.textContent = '重新加载';
+          reload.style.cssText = 'min-height:42px;padding:0 18px;border:1px solid #caa861;border-radius:10px;background:#2a241b;color:#fff;cursor:pointer';
+          reload.onclick = function () { window.location.reload(); };
+          panel.appendChild(title);
+          panel.appendChild(explanation);
+          panel.appendChild(detail);
+          panel.appendChild(reload);
+          document.body.appendChild(panel);
+        }, 3000);
+      })();
+    </script>
+
+    <script>
       const input = document.getElementById('file-input');
       const ruleInput = document.getElementById('rule-input');
       const skinInput = document.getElementById('skin-input');
@@ -1306,6 +1399,7 @@
       const chapterSummary = document.getElementById('chapter-summary');
       const chapterList = document.getElementById('chapter-list');
       const chapterEmpty = document.getElementById('chapter-empty');
+      const chapterModeInput = document.getElementById('chapter-mode');
       const chapterHiddenToggle = document.getElementById('chapter-hidden-toggle');
       const chapterHiddenCount = document.getElementById('chapter-hidden-count');
       const chapterHiddenPanel = document.getElementById('chapter-hidden-panel');
@@ -1383,6 +1477,7 @@
       let detectedChapters = [];
       let hiddenChapterKeys = new Set();
       let activeBookId = '';
+      let chapterMode = 'title';
       let activeChapterId = '';
       let viewMode = 'scroll';
       let flipPages = [];
@@ -1416,6 +1511,7 @@
       const BODY_TAG_STORAGE_KEY = 'txt-chat-viewer-body-tags-v1';
       const RULE_STORAGE_KEY = 'txt-chat-viewer-rules-v1';
       const HIDDEN_CHAPTER_STORAGE_PREFIX = 'txt-chat-viewer-hidden-chapters-v1:';
+      const CHAPTER_MODE_STORAGE_KEY = 'txt-chat-viewer-chapter-mode-v1';
       const LIBRARY_DB_NAME = 'txt-chat-viewer-library-v1';
       const LIBRARY_STORE_NAME = 'books';
       const LIBRARY_FALLBACK_KEY = 'txt-chat-viewer-library-fallback-v1';
@@ -1476,13 +1572,20 @@
       };
       const FONT_FILE_EXTENSIONS = new Set(['ttf', 'otf', 'woff', 'woff2']);
 
+      function firstDefined() {
+        for (let index = 0; index < arguments.length; index += 1) {
+          if (arguments[index] !== undefined && arguments[index] !== null) return arguments[index];
+        }
+        return undefined;
+      }
+
       function normalizeCustomTagName(value) {
         const source = String(value || '').trim();
         if (!source) return '';
         const angleMatch = /^<\s*\/?\s*([^\s/>]+)(?:\s[^<>]*?)?\/?\s*>$/u.exec(source);
         const plainMatch = /^([^\s,，;；、|<>\r\n\t]+)$/u.exec(source);
         // 标签名按纯文本逐个比较，不会把用户输入拼进 CSS 选择器。
-        return (angleMatch?.[1] || plainMatch?.[1] || '').trim().toLowerCase();
+        return ((angleMatch && angleMatch[1]) || (plainMatch && plainMatch[1]) || '').trim().toLowerCase();
       }
 
       function parseTagBatch(value) {
@@ -1515,7 +1618,7 @@
       }
 
       function importedFontDisplayName(file) {
-        const source = String(file?.name || '导入字体').replace(/\.[^.]+$/, '').replace(/\s+/g, ' ').trim();
+        const source = String((file && file.name) || '导入字体').replace(/\.[^.]+$/, '').replace(/\s+/g, ' ').trim();
         return source.slice(0, 42) || '导入字体';
       }
 
@@ -1651,7 +1754,7 @@
             }
           }
         } catch (error) {
-          fontImportState.textContent = `导入失败：${error?.message || '这个文件不是可用字体'}`;
+          fontImportState.textContent = `导入失败：${(error && error.message) || '这个文件不是可用字体'}`;
         }
       }
 
@@ -1660,7 +1763,7 @@
         try {
           const record = await readPersistedFont();
           if (restoreVersion !== fontRestoreVersion) return;
-          if (!record?.blob) {
+          if (!record || !record.blob) {
             if (pendingCustomFontPreference) {
               pendingCustomFontPreference = false;
               readingPreferences.font = 'skin';
@@ -1721,6 +1824,27 @@
         } catch (_) {
           return false;
         }
+      }
+
+      function restoreChapterMode() {
+        try {
+          chapterMode = localStorage.getItem(CHAPTER_MODE_STORAGE_KEY) === 'floor' ? 'floor' : 'title';
+        } catch (_) {
+          chapterMode = 'title';
+        }
+        chapterModeInput.value = chapterMode;
+      }
+
+      function setChapterMode(mode) {
+        chapterMode = mode === 'floor' ? 'floor' : 'title';
+        chapterModeInput.value = chapterMode;
+        try { localStorage.setItem(CHAPTER_MODE_STORAGE_KEY, chapterMode); } catch (_) {}
+        activeChapterId = '';
+        flipIndex = 0;
+        chapterHiddenPanel.hidden = true;
+        chapterHiddenToggle.setAttribute('aria-expanded', 'false');
+        if (loadedText) renderActiveContent({ resetFlip: true });
+        else renderChapterMenu();
       }
 
       function normalizeBook(value) {
@@ -1909,9 +2033,9 @@
           id: bookId,
           name: normalizedName,
           text: normalizedText,
-          createdAt: existing?.createdAt || now,
+          createdAt: (existing && existing.createdAt) || now,
           updatedAt: now,
-          lastOpenedAt: opened ? now : (existing?.lastOpenedAt || 0),
+          lastOpenedAt: opened ? now : ((existing && existing.lastOpenedAt) || 0),
         });
         const nextBooks = [...books.filter((candidate) => candidate.id !== book.id), book];
         await writeLibraryBook(book, nextBooks);
@@ -1973,7 +2097,7 @@
       }
 
       async function deleteLibraryBook(book) {
-        if (!window.confirm(`要从书架删除《${book.name}》吗？这不会影响原始 TXT 文件。`)) return;
+        if (!window.confirm(`要从书架删除《${book.name}》吗？这不会影响原始导入文件。`)) return;
         try {
           const remainingBooks = libraryBooks.filter((candidate) => candidate.id !== book.id);
           await removeLibraryBook(book.id, remainingBooks);
@@ -2169,19 +2293,19 @@
       }
 
       function parseRuleConfig(config, fallbackName) {
-        const candidate = config.pattern ?? config.regex ?? config.findRegex ?? config.find_regex;
+        const candidate = firstDefined(config.pattern, config.regex, config.findRegex, config.find_regex);
         if (typeof candidate !== 'string' || !candidate.trim()) {
           throw new Error('JSON 里需要 pattern、regex 或 findRegex 字段。');
         }
         const literal = splitRegexLiteral(candidate);
-        const group = Number(config.group ?? config.captureGroup ?? config.capture_group ?? 0);
+        const group = Number(firstDefined(config.group, config.captureGroup, config.capture_group, 0));
         const pattern = literal.pattern;
-        const flags = normalizeFlags(config.flags ?? config.regexFlags ?? config.regex_flags ?? literal.flags);
-        const replacement = config.replaceString ?? config.replacement ?? config.replace ?? '';
+        const flags = normalizeFlags(firstDefined(config.flags, config.regexFlags, config.regex_flags, literal.flags));
+        const replacement = firstDefined(config.replaceString, config.replacement, config.replace, '');
         new RegExp(pattern, flags);
         return {
           id: nextRuleId(),
-          name: String(config.scriptName ?? config.name ?? fallbackName),
+          name: String(firstDefined(config.scriptName, config.name, fallbackName)),
           pattern,
           flags,
           group: Number.isInteger(group) && group > 0 ? group : 0,
@@ -2328,7 +2452,7 @@
 
       function percentageValue(value) {
         if (typeof value === 'number' && Number.isFinite(value)) return `${Math.min(100, Math.max(0, value <= 1 ? value * 100 : value))}%`;
-        const source = String(value ?? '').trim();
+        const source = String(firstDefined(value, '')).trim();
         if (/^\d+(?:\.\d+)?%$/.test(source)) return source;
         const numeric = Number(source);
         return Number.isFinite(numeric) ? `${Math.min(100, Math.max(0, numeric <= 1 ? numeric * 100 : numeric))}%` : '';
@@ -2336,26 +2460,26 @@
 
       function alphaValue(value) {
         if (typeof value === 'number' && Number.isFinite(value)) return String(Math.min(1, Math.max(0, value > 1 ? value / 100 : value)));
-        const source = String(value ?? '').trim();
+        const source = String(firstDefined(value, '')).trim();
         if (/^\d+(?:\.\d+)?%$/.test(source)) return String(Math.min(1, Math.max(0, Number(source.slice(0, -1)) / 100)));
         const numeric = Number(source);
         return Number.isFinite(numeric) ? String(Math.min(1, Math.max(0, numeric > 1 ? numeric / 100 : numeric))) : '';
       }
 
       function fontWeightValue(value) {
-        const source = String(value ?? '').trim();
+        const source = String(firstDefined(value, '')).trim();
         return /^(?:[1-9]00|normal|bold|lighter|bolder)$/.test(source) ? source : '';
       }
 
       function addStructuredSkinTokens(source, tokens) {
         const background = source.background && typeof source.background === 'object' && !Array.isArray(source.background) ? source.background : {};
-        const image = background.image ?? source.backgroundImage;
+        const image = firstDefined(background.image, source.backgroundImage);
         if (typeof image === 'string') tokens['--page-bg-image'] = cssImageValue(image);
         [['size', '--page-bg-size'], ['position', '--page-bg-position'], ['attachment', '--page-bg-attachment'], ['overlay', '--page-bg-overlay']].forEach(([field, token]) => {
           const value = background[field];
           if (typeof value === 'string' && value.trim()) tokens[token] = value.trim();
         });
-        const imageOpacity = alphaValue(background.opacity ?? source.backgroundOpacity);
+        const imageOpacity = alphaValue(firstDefined(background.opacity, source.backgroundOpacity));
         if (imageOpacity) tokens['--page-bg-opacity'] = imageOpacity;
 
         const opacity = source.opacity && typeof source.opacity === 'object' && !Array.isArray(source.opacity) ? source.opacity : {};
@@ -2374,34 +2498,34 @@
           const value = layout[field];
           if (typeof value === 'string' && value.trim()) tokens[token] = value.trim();
         });
-        const readingFont = reading.font ?? layout.contentFont;
+        const readingFont = firstDefined(reading.font, layout.contentFont);
         if (typeof readingFont === 'string' && readingFont.trim()) tokens['--content-font'] = readingFont.trim();
-        const readingWeight = fontWeightValue(reading.weight ?? layout.contentFontWeight);
+        const readingWeight = fontWeightValue(firstDefined(reading.weight, layout.contentFontWeight));
         if (readingWeight) tokens['--content-font-weight'] = readingWeight;
-        const readingColor = reading.color ?? layout.contentColor;
+        const readingColor = firstDefined(reading.color, layout.contentColor);
         if (typeof readingColor === 'string' && readingColor.trim()) {
           tokens['--content-ink'] = readingColor.trim();
-          const flipColor = reading.flipColor ?? layout.flipTextColor ?? readingColor;
+          const flipColor = firstDefined(reading.flipColor, layout.flipTextColor, readingColor);
           if (typeof flipColor === 'string' && flipColor.trim()) tokens['--flip-ink'] = flipColor.trim();
         } else {
-          const flipColor = reading.flipColor ?? layout.flipTextColor;
+          const flipColor = firstDefined(reading.flipColor, layout.flipTextColor);
           if (typeof flipColor === 'string' && flipColor.trim()) tokens['--flip-ink'] = flipColor.trim();
         }
         const readingNumber = (value, min, max, step) => {
           const numeric = typeof value === 'string' ? parseFloat(value) : Number(value);
           return Number.isFinite(numeric) ? normalizedNumber(numeric, min, max, numeric, step) : null;
         };
-        const fontSize = readingNumber(reading.size ?? reading.fontSize ?? layout.contentFontSize, 13, 28, 1);
+        const fontSize = readingNumber(firstDefined(reading.size, reading.fontSize, layout.contentFontSize), 13, 28, 1);
         if (fontSize !== null) tokens['--content-font-size'] = `${fontSize}px`;
-        const lineHeight = readingNumber(reading.lineHeight ?? layout.contentLineHeight, 1.1, 3, .05);
+        const lineHeight = readingNumber(firstDefined(reading.lineHeight, layout.contentLineHeight), 1.1, 3, .05);
         if (lineHeight !== null) tokens['--content-line-height'] = String(lineHeight);
-        const paragraphSpacing = readingNumber(reading.paragraphSpacing ?? layout.contentParagraphSpacing, 0, 3, .05);
+        const paragraphSpacing = readingNumber(firstDefined(reading.paragraphSpacing, layout.contentParagraphSpacing), 0, 3, .05);
         if (paragraphSpacing !== null) tokens['--content-paragraph-spacing'] = `${paragraphSpacing}em`;
-        const paragraphIndent = readingNumber(reading.paragraphIndent ?? layout.contentParagraphIndent, 0, 4, .05);
+        const paragraphIndent = readingNumber(firstDefined(reading.paragraphIndent, layout.contentParagraphIndent), 0, 4, .05);
         if (paragraphIndent !== null) tokens['--content-paragraph-indent'] = `${paragraphIndent}em`;
-        const contentWidth = readingNumber(reading.width ?? reading.contentWidth ?? layout.contentWidth, 0, 100, 1);
+        const contentWidth = readingNumber(firstDefined(reading.width, reading.contentWidth, layout.contentWidth), 0, 100, 1);
         if (contentWidth !== null) tokens['--content-column-width'] = contentWidth ? `${contentWidth}ch` : 'none';
-        const sideMargin = readingNumber(reading.sideMargin ?? reading.margin ?? layout.contentSideMargin, 0, 4, .05);
+        const sideMargin = readingNumber(firstDefined(reading.sideMargin, reading.margin, layout.contentSideMargin), 0, 4, .05);
         if (sideMargin !== null) tokens['--content-side-inset'] = `${sideMargin}rem`;
 
         const ttsSkin = source.tts && typeof source.tts === 'object' && !Array.isArray(source.tts) ? source.tts : {};
@@ -2420,10 +2544,11 @@
         if (!source || typeof source !== 'object' || Array.isArray(source)) {
           throw new Error('皮肤配置必须是一个 JSON 对象。');
         }
-        const tokens = sanitizeSkinTokens(source.tokens ?? source.variables);
+        const tokens = sanitizeSkinTokens(firstDefined(source.tokens, source.variables));
         addStructuredSkinTokens(source, tokens);
-        const labels = sanitizeSkinControls(source.controls ?? source.labels ?? source.ui?.controls);
-        const icons = sanitizeSkinControls(source.icons ?? source.ui?.icons);
+        const sourceUi = source.ui && typeof source.ui === 'object' ? source.ui : {};
+        const labels = sanitizeSkinControls(firstDefined(source.controls, source.labels, sourceUi.controls));
+        const icons = sanitizeSkinControls(firstDefined(source.icons, sourceUi.icons));
         const controls = { ...labels };
         Object.entries(icons).forEach(([key, icon]) => {
           controls[key] = controls[key] ? `${icon} ${controls[key]}` : icon;
@@ -2432,11 +2557,11 @@
         if (!Object.keys(tokens).length && !css && !Object.keys(controls).length) {
           throw new Error('皮肤至少需要 tokens、controls 或 css 其中之一。');
         }
-        const name = String(source.name ?? fallbackName ?? '未命名皮肤').trim() || '未命名皮肤';
+        const name = String(firstDefined(source.name, fallbackName, '未命名皮肤')).trim() || '未命名皮肤';
         return {
           id: makeSkinId(),
           name: name.slice(0, 48),
-          description: String(source.description ?? '外部导入皮肤').trim().slice(0, 72),
+          description: String(firstDefined(source.description, '外部导入皮肤')).trim().slice(0, 72),
           colorScheme: source.colorScheme === 'light' ? 'light' : 'dark',
           tokens,
           controls,
@@ -2650,7 +2775,7 @@
       }
 
       function opacityPercent(value, fallback = 100) {
-        const source = String(value ?? '').trim();
+        const source = String(firstDefined(value, '')).trim();
         if (/^\d+(?:\.\d+)?%$/.test(source)) return Math.min(100, Math.max(0, Math.round(Number(source.slice(0, -1)))));
         const numeric = Number(source);
         if (!Number.isFinite(numeric)) return fallback;
@@ -2658,7 +2783,10 @@
       }
 
       function activeSkinToken(key, fallback = '') {
-        return getSkin(activeSkinId)?.tokens?.[key] ?? fallback;
+        const skin = getSkin(activeSkinId);
+        return skin && skin.tokens && skin.tokens[key] !== undefined && skin.tokens[key] !== null
+          ? skin.tokens[key]
+          : fallback;
       }
 
       function currentSkinBackgroundOpacity() {
@@ -2959,10 +3087,10 @@
       function normalizeBodyTagRules(value) {
         const seen = new Set();
         return (Array.isArray(value) ? value : []).flatMap((item) => {
-          const tag = normalizeCustomTagName(typeof item === 'string' ? item : item?.tag);
+          const tag = normalizeCustomTagName(typeof item === 'string' ? item : item && item.tag);
           if (!tag || seen.has(tag)) return [];
           seen.add(tag);
-          const mode = BODY_TAG_MODES.has(item?.mode) ? item.mode : 'hide';
+          const mode = item && BODY_TAG_MODES.has(item.mode) ? item.mode : 'hide';
           return [{ tag, mode }];
         });
       }
@@ -3071,7 +3199,7 @@
       }
 
       function bodyTagSegmentKey(segment) {
-        return segment?.type === 'text' ? 'text' : segment?.type === 'component' ? 'html' : '';
+        return segment && segment.type === 'text' ? 'text' : segment && segment.type === 'component' ? 'html' : '';
       }
 
       function pairedBodyHideTokenKeys(segments, tagModes) {
@@ -3207,6 +3335,37 @@
         return markers;
       }
 
+      function floorSpeakerFromLine(line) {
+        const value = String(line || '').replace(/^[\s　]+|[\s　]+$/g, '');
+        const match = /^([^\r\n:：<>]{1,48})[:：]$/u.exec(value);
+        if (!match) return '';
+        const speaker = match[1].trim();
+        if (!speaker || /[。！？；，,]/u.test(speaker)) return '';
+        return speaker;
+      }
+
+      function findFloorMarkers(text) {
+        const source = String(text || '');
+        const markers = [];
+        const lineBreak = /\r\n|\n|\r/g;
+        let lineStart = 0;
+        let match;
+        const inspectLine = (lineEnd, nextStart) => {
+          const speaker = floorSpeakerFromLine(source.slice(lineStart, lineEnd));
+          if (speaker) markers.push({ start: lineStart, end: nextStart, title: speaker });
+        };
+        while ((match = lineBreak.exec(source)) !== null) {
+          inspectLine(match.index, match.index + match[0].length);
+          lineStart = match.index + match[0].length;
+        }
+        if (lineStart < source.length) inspectLine(source.length, source.length);
+        return markers;
+      }
+
+      function chapterMarkersForMode(text, mode = chapterMode) {
+        return mode === 'floor' ? findFloorMarkers(text) : findChapterMarkers(text);
+      }
+
       function annotateChapterSegments(segments) {
         const annotated = [];
         const detected = [];
@@ -3217,7 +3376,7 @@
             annotated.push(segment);
             return;
           }
-          const markers = findChapterMarkers(segment.text);
+          const markers = chapterMarkersForMode(segment.text);
           if (!markers.length) {
             annotated.push(segment);
             return;
@@ -3226,14 +3385,20 @@
           markers.forEach((marker) => {
             if (marker.start > cursor) annotated.push({ ...segment, text: segment.text.slice(cursor, marker.start) });
             sequence += 1;
-            const titleOccurrence = (titleOccurrences.get(marker.title) || 0) + 1;
-            titleOccurrences.set(marker.title, titleOccurrence);
+            const sourceOccurrence = (titleOccurrences.get(marker.title) || 0) + 1;
+            titleOccurrences.set(marker.title, sourceOccurrence);
+            const title = chapterMode === 'floor' ? `第 ${sequence} 楼 · ${marker.title}` : marker.title;
             const chapter = {
               id: `chapter-${sequence}`,
               anchorId: `chapter-anchor-${sequence}`,
-              title: marker.title,
-              titleOccurrence,
-              key: JSON.stringify([marker.title, titleOccurrence]),
+              title,
+              mode: chapterMode,
+              sourceTitle: marker.title,
+              sourceOccurrence,
+              titleOccurrence: sourceOccurrence,
+              key: chapterMode === 'floor'
+                ? JSON.stringify(['floor', marker.title, sourceOccurrence])
+                : JSON.stringify([marker.title, sourceOccurrence]),
             };
             annotated.push({ type: 'chapter', chapter });
             detected.push(chapter);
@@ -3499,7 +3664,7 @@
       function updateFlipNavigation(stage = content.querySelector('.flip-stage')) {
         const total = String(flipPages.length);
         const current = String(flipIndex + 1);
-        const controls = stage?.querySelector('.flip-controls');
+        const controls = stage ? stage.querySelector('.flip-controls') : null;
         if (controls) {
           const previous = controls.querySelector('.flip-previous');
           const next = controls.querySelector('.flip-next');
@@ -3811,7 +3976,7 @@
       }
 
       function restoreHiddenChapter(chapter) {
-        if (!chapter?.key || !hiddenChapterKeys.delete(chapter.key)) return;
+        if (!chapter || !chapter.key || !hiddenChapterKeys.delete(chapter.key)) return;
         saveHiddenChapterKeys();
         renderActiveContent();
       }
@@ -3824,17 +3989,20 @@
       }
 
       function rawChapterRange(chapter) {
-        if (!chapter?.title || !Number.isInteger(chapter.titleOccurrence)) return null;
-        const markers = findChapterMarkers(loadedText);
-        let titleOccurrence = 0;
+        if (!chapter) return null;
+        const sourceTitle = chapter.sourceTitle || chapter.title;
+        const sourceOccurrence = Number(chapter.sourceOccurrence || chapter.titleOccurrence);
+        if (!sourceTitle || !Number.isInteger(sourceOccurrence)) return null;
+        const markers = chapterMarkersForMode(loadedText, chapter.mode === 'floor' ? 'floor' : 'title');
+        let occurrence = 0;
         for (let index = 0; index < markers.length; index += 1) {
           const marker = markers[index];
-          if (marker.title !== chapter.title) continue;
-          titleOccurrence += 1;
-          if (titleOccurrence !== chapter.titleOccurrence) continue;
+          if (marker.title !== sourceTitle) continue;
+          occurrence += 1;
+          if (occurrence !== sourceOccurrence) continue;
           return {
             start: marker.start,
-            end: markers[index + 1]?.start ?? loadedText.length,
+            end: markers[index + 1] ? markers[index + 1].start : loadedText.length,
           };
         }
         return null;
@@ -3854,7 +4022,7 @@
           alert(`无法安全定位《${chapter.title}》在原始文本中的位置，因此没有删除。你仍可在书架的“编辑”中手动修改。`);
           return;
         }
-        if (!window.confirm(`永久删除《${chapter.title}》？\n\n这会从书架里的本地副本删除整章，无法通过“恢复”找回；你导入时的原始 TXT 文件不受影响。`)) return;
+        if (!window.confirm(`永久删除《${chapter.title}》？\n\n这会从书架里的本地副本删除整章，无法通过“恢复”找回；你导入时的原始文件不受影响。`)) return;
         const confirmation = window.prompt(`最后确认：请输入“永久删除”四个字。\n\n目标章节：${chapter.title}`, '');
         if (confirmation === null) return;
         if (confirmation.trim() !== '永久删除') {
@@ -3877,9 +4045,9 @@
           activeChapterId = '';
           flipIndex = 0;
           fileInfo.textContent = `${saved.lineCount.toLocaleString('zh-CN')} 行 · ${saved.characterCount.toLocaleString('zh-CN')} 个字符`;
-          fillDraftFromBook(saved, `已永久删除《${chapter.title}》的本地书架副本；原始 TXT 未改动。`);
+          fillDraftFromBook(saved, `已永久删除《${chapter.title}》的本地书架副本；原始导入文件未改动。`);
           renderActiveContent({ resetFlip: true });
-          alert(`已从本地书架副本永久删除《${chapter.title}》。原始 TXT 文件没有改动。`);
+          alert(`已从本地书架副本永久删除《${chapter.title}》。原始导入文件没有改动。`);
         } catch (_) {
           alert('永久删除失败：浏览器没有允许修改本地书架，原内容未改动。');
         }
@@ -3922,13 +4090,17 @@
         chapterCount.hidden = chapters.length === 0;
         const hiddenCount = detectedChapters.filter((chapter) => hiddenChapterKeys.has(chapter.key)).length;
         chapterSummary.textContent = detectedChapters.length
-          ? `已识别 ${detectedChapters.length} 个章节；当前显示 ${chapters.length} 个。右侧“删除”会加入本书的已隐藏清单。${hiddenCount ? `已隐藏 ${hiddenCount} 个。` : ''}`
-          : '会从当前显示内容中自动识别标题。';
+          ? `${chapterMode === 'floor' ? '按楼层' : '按标题'}识别 ${detectedChapters.length} 个章节；当前显示 ${chapters.length} 个。右侧“删除”会加入本书的已隐藏清单。${hiddenCount ? `已隐藏 ${hiddenCount} 个。` : ''}`
+          : chapterMode === 'floor'
+            ? '没有识别到楼层；JSON/JSONL 会自动按消息切分，TXT 需使用单独一行的“名字:”作为每层开头。'
+            : '会从当前显示内容中自动识别标题。';
         chapterList.replaceChildren();
         chapterEmpty.hidden = chapters.length > 0;
         chapterEmpty.textContent = detectedChapters.length
           ? '当前所有识别章节都已隐藏。可打开“已隐藏清单”恢复或永久删除。'
-          : '未识别到章节标题。可让标题单独占一行，使用“第 1 章 …”“# 标题”或“Chapter 1”。';
+          : chapterMode === 'floor'
+            ? '未识别到楼层。JSON/JSONL 会按每条消息切分；TXT 可使用单独一行的“角色名:”作为楼层开头。'
+            : '未识别到章节标题。可让标题单独占一行，使用“第 1 章 …”“# 标题”或“Chapter 1”。';
         const currentId = currentChapterId();
 
         chapters.forEach((chapter, index) => {
@@ -4161,20 +4333,158 @@
         }
       });
 
+      function jsonRecordLooksLikeMessage(record) {
+        if (!record || typeof record !== 'object' || Array.isArray(record)) return false;
+        if (typeof record.mes === 'string' || Array.isArray(record.swipes)) return true;
+        const nestedMessage = record.message && typeof record.message === 'object' && !Array.isArray(record.message)
+          ? record.message
+          : null;
+        const hasRole = typeof record.role === 'string' || typeof record.name === 'string'
+          || 'is_user' in record || 'is_system' in record || Boolean(nestedMessage && nestedMessage.author);
+        return hasRole && (typeof record.content === 'string' || Array.isArray(record.content)
+          || typeof record.text === 'string' || typeof record.message === 'string'
+          || Boolean(nestedMessage && (typeof nestedMessage.content === 'string' || Array.isArray(nestedMessage.content))));
+      }
+
+      function jsonChatRecords(value, depth = 0, seen = new Set()) {
+        if (depth > 4 || value === null || typeof value !== 'object' || seen.has(value)) return [];
+        seen.add(value);
+        if (Array.isArray(value)) {
+          if (value.some(jsonRecordLooksLikeMessage)) return value.filter((item) => item && typeof item === 'object');
+          for (const item of value) {
+            const nested = jsonChatRecords(item, depth + 1, seen);
+            if (nested.length) return nested;
+          }
+          return [];
+        }
+        if (jsonRecordLooksLikeMessage(value)) return [value];
+        for (const key of ['messages', 'chat', 'history', 'conversation', 'records', 'items', 'data']) {
+          if (!(key in value)) continue;
+          const nested = jsonChatRecords(value[key], depth + 1, seen);
+          if (nested.length) return nested;
+        }
+        const values = Object.values(value).filter((item) => item && typeof item === 'object');
+        if (values.some(jsonRecordLooksLikeMessage)) return values.filter(jsonRecordLooksLikeMessage);
+        return [];
+      }
+
+      function jsonContentText(content) {
+        if (typeof content === 'string') return content;
+        if (!Array.isArray(content)) return '';
+        return content.map((part) => {
+          if (typeof part === 'string') return part;
+          if (part && typeof part.text === 'string') return part.text;
+          if (part && typeof part.content === 'string') return part.content;
+          return '';
+        }).filter(Boolean).join('\n');
+      }
+
+      function jsonMessageText(record) {
+        if (record && typeof record.mes === 'string' && record.mes.trim()) return record.mes;
+        const swipeIndex = Number(record && record.swipe_id);
+        if (record && Array.isArray(record.swipes) && Number.isInteger(swipeIndex)
+          && typeof record.swipes[swipeIndex] === 'string' && record.swipes[swipeIndex].trim()) {
+          return record.swipes[swipeIndex];
+        }
+        const content = jsonContentText(record && record.content);
+        if (content.trim()) return content;
+        if (record && typeof record.text === 'string' && record.text.trim()) return record.text;
+        if (record && typeof record.message === 'string' && record.message.trim()) return record.message;
+        const nested = jsonContentText(record && record.message && record.message.content);
+        return nested.trim() ? nested : '';
+      }
+
+      function jsonChatMetadata(root, records) {
+        const candidates = [];
+        if (root && typeof root === 'object' && !Array.isArray(root)) candidates.push(root);
+        candidates.push(...records.filter((record) => record && typeof record === 'object'
+          && !jsonRecordLooksLikeMessage(record)));
+        return candidates.find((record) => record.chat_metadata || record.user_name || record.character_name)
+          || candidates[0] || {};
+      }
+
+      function parseJsonChatSource(source, fileName = '聊天记录.jsonl') {
+        const raw = String(source || '').replace(/^\uFEFF/u, '').trim();
+        if (!raw) throw new Error('文件是空的。');
+        let root;
+        try {
+          root = JSON.parse(raw);
+        } catch (wholeFileError) {
+          const lines = raw.split(/\r\n|\n|\r/).map((line, index) => ({ line: line.trim(), index: index + 1 }))
+            .filter((item) => item.line);
+          if (lines.length < 2) throw new Error('JSON 格式无效，且不是有效的逐行 JSONL。');
+          root = lines.map((item) => {
+            try {
+              return JSON.parse(item.line);
+            } catch (_) {
+              throw new Error(`JSONL 第 ${item.index} 行无法解析。`);
+            }
+          });
+        }
+
+        const records = jsonChatRecords(root);
+        if (!records.length) throw new Error('没有找到酒馆聊天消息；请选择聊天导出的 JSON/JSONL，而不是角色卡或世界书。');
+        const metadata = jsonChatMetadata(root, records);
+        const userName = String(metadata.user_name || 'User').trim() || 'User';
+        const characterName = String(metadata.character_name || metadata.name || 'Assistant').trim() || 'Assistant';
+        const messages = [];
+        let skipped = 0;
+        records.forEach((record) => {
+          const message = jsonMessageText(record);
+          if (!message.trim()) {
+            skipped += 1;
+            return;
+          }
+          const role = String(record.role || (record.message && record.message.author && record.message.author.role) || '').toLowerCase();
+          const isUser = record.is_user === true || record.is_user === 'true' || role === 'user';
+          const isSystem = record.is_system === true || record.is_system === 'true' || role === 'system';
+          const fallbackName = isSystem ? '系统' : isUser ? userName : characterName;
+          const speaker = String(record.name || (record.message && record.message.author && record.message.author.name) || fallbackName).trim() || fallbackName;
+          messages.push(`${speaker}:\n${message.replace(/\r\n?/g, '\n').trim()}`);
+        });
+        if (!messages.length) throw new Error('JSON/JSONL 中没有非空的聊天正文（mes）。');
+        return {
+          text: messages.join('\n\n'),
+          messageCount: messages.length,
+          skipped,
+          sourceName: fileName,
+        };
+      }
+
       async function showFile(file) {
         if (!file) return;
-        if (!file.name.toLowerCase().endsWith('.txt') && file.type !== 'text/plain') {
-          alert('请选择 .txt 文件。');
+        const lowerName = String(file.name || '').toLowerCase();
+        const isJsonChat = /\.(?:json|jsonl)$/i.test(lowerName)
+          || file.type === 'application/json' || file.type === 'application/x-ndjson';
+        const isTextChat = lowerName.endsWith('.txt') || file.type === 'text/plain';
+        if (!isJsonChat && !isTextChat) {
+          alert('请选择 .txt、.json 或 .jsonl 聊天文件。');
           return;
         }
 
-        const text = await file.text();
+        const source = await file.text();
+        let text = source;
+        let jsonImport = null;
+        if (isJsonChat) {
+          try {
+            jsonImport = parseJsonChatSource(source, file.name);
+            text = jsonImport.text;
+          } catch (error) {
+            alert(`无法导入 ${file.name}：${error instanceof Error ? error.message : '无法解析聊天 JSON。'}`);
+            return;
+          }
+        }
         try {
           const book = await saveLibraryBook({ name: file.name, text, opened: true });
           showBook(book);
+          if (jsonImport) {
+            fileInfo.textContent = `${jsonImport.messageCount.toLocaleString('zh-CN')} 条消息 · ${book.characterCount.toLocaleString('zh-CN')} 个字符`;
+            draftStatus.textContent = `已从酒馆 JSON${lowerName.endsWith('.jsonl') ? 'L' : ''} 导入 ${jsonImport.messageCount} 条消息${jsonImport.skipped ? `，跳过 ${jsonImport.skipped} 条空记录` : ''}。`;
+          }
         } catch (_) {
           const book = normalizeBook({ name: file.name, text });
           showBook(book);
+          if (jsonImport) fileInfo.textContent = `${jsonImport.messageCount.toLocaleString('zh-CN')} 条消息 · ${book.characterCount.toLocaleString('zh-CN')} 个字符`;
           draftStatus.textContent = '文件已打开，但浏览器暂时无法把它存入书架。';
         }
       }
@@ -4199,7 +4509,7 @@
           renderRuleMenu();
           setRuleMenuOpen(true);
           if (loadedText) renderActiveContent();
-          else ruleStatus.textContent = `已导入 ${rules.length} 条正则 · 请再导入聊天 TXT`;
+          else ruleStatus.textContent = `已导入 ${rules.length} 条正则 · 请再导入聊天文件`;
         }
         if (errors.length) alert(errors.join('\n'));
       }
@@ -4259,6 +4569,7 @@
         applyReadingPreferences({ relayout: false });
       });
       chaptersToggle.addEventListener('click', () => setChapterMenuOpen(chapterMenu.hidden));
+      chapterModeInput.addEventListener('change', () => setChapterMode(chapterModeInput.value));
       chapterHiddenToggle.addEventListener('click', () => {
         chapterHiddenPanel.hidden = !chapterHiddenPanel.hidden;
         chapterHiddenToggle.setAttribute('aria-expanded', String(!chapterHiddenPanel.hidden));
@@ -4291,7 +4602,7 @@
       });
       fontFileImport.addEventListener('click', () => fontFileInput.click());
       fontFileInput.addEventListener('change', async () => {
-        const file = fontFileInput.files?.[0];
+        const file = fontFileInput.files && fontFileInput.files[0];
         fontFileInput.value = '';
         await importFontFile(file);
       });
@@ -4456,6 +4767,7 @@
         });
       });
       dropZone.addEventListener('drop', (event) => showFile(event.dataTransfer.files[0]));
+      restoreChapterMode();
       restoreSkins();
       applySkin(activeSkinId);
       restoreReadingPreferences();
@@ -4791,8 +5103,8 @@
           if (this.range === 'chapters' && typeof chapters !== 'undefined') {
             const cs = Math.max(0, this.chapterStart - 1);
             const ce = Math.min(chapters.length, this.chapterEnd);
-            const startId = chapters[cs]?.id;
-            const endId = chapters[ce]?.id;
+            const startId = chapters[cs] && chapters[cs].id;
+            const endId = chapters[ce] && chapters[ce].id;
             const out = []; let on = false;
             for (const s of all) {
               if (s.type === 'chapter') {
@@ -4939,7 +5251,7 @@
           });
           const data = await res.json();
           if (data.base_resp && data.base_resp.status_code === 0) return this.hexToBlob(data.data.audio, 'audio/mpeg');
-          const code = data.base_resp?.status_code; const msg = data.base_resp?.status_msg || '未知错误';
+          const code = data.base_resp && data.base_resp.status_code; const msg = (data.base_resp && data.base_resp.status_msg) || '未知错误';
           if (code === 1004) throw new Error('鉴权失败 (1004) — 检查 Key 是否是 Token Plan 订阅 Key');
           if (code === 1002) throw new Error('触发限流 (1002) — 5h 窗口或周窗口用完');
           if (code === 1042) throw new Error('非法字符 > 10% (1042) — 检查文本');
@@ -5005,7 +5317,8 @@
           btn.className = 'tts-trigger';
           btn.textContent = '🔊';
           btn.title = '朗读本章';
-          btn.setAttribute('aria-label', `朗读：${item.querySelector('.chapter-title')?.textContent || ''}`);
+          const chapterTitle = item.querySelector('.chapter-title');
+          btn.setAttribute('aria-label', `朗读：${chapterTitle ? chapterTitle.textContent : ''}`);
           btn.addEventListener('click', (e) => { e.stopPropagation(); tts.open('chapter', item.dataset.chapterId); });
           item.appendChild(btn);
         });
@@ -5082,7 +5395,7 @@
         };
         const audio = document.getElementById('tts-audio');
         ['play', 'playing', 'pause', 'ended', 'emptied'].forEach((name) => {
-          audio?.addEventListener(name, reportTtsState);
+          if (audio) audio.addEventListener(name, reportTtsState);
         });
         if (reader) {
           new MutationObserver(reportReaderState).observe(reader, { attributes: true, attributeFilter: ['hidden'] });
@@ -5103,6 +5416,7 @@
         reportReaderState();
         reportTtsState();
       })();
+      window.__tavernReaderBooted = true;
     </script>
   </body>
 </html>
